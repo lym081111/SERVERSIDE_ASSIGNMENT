@@ -13,6 +13,14 @@ class AchievementController {
         return !empty($_SESSION['isAdmin']);
     }
 
+    private function checkAdmin() {
+        $this->checkLogin();
+        if (!$this->isAdmin()) {
+            header("Location: index.php?url=dashboard/index");
+            exit();
+        }
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -58,12 +66,15 @@ class AchievementController {
                     }
                 }
 
+                $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
+                $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
+
                 if ($error === null) {
                     Achievement::create(
                         $targetUserID,
                         $_POST['title'],
                         $_POST['category'],
-                        $_POST['dateReceived'],
+                        $dateReceived === '' ? null : $dateReceived,
                         $_POST['description']
                     );
 
@@ -94,32 +105,43 @@ class AchievementController {
             exit();
         }
 
+        $error = null;
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if ($this->isAdmin()) {
-                Achievement::updateById(
-                    $id,
-                    $_POST['title'],
-                    $_POST['category'],
-                    $_POST['dateReceived'],
-                    $_POST['description']
-                );
-            } else {
-                $userID = $_SESSION['user_id'];
-                Achievement::update(
-                    $id,
-                    $userID,
-                    $_POST['title'],
-                    $_POST['category'],
-                    $_POST['dateReceived'],
-                    $_POST['description']
-                );
+            if (empty($_POST['title'])) {
+                $error = "Achievement title is required.";
             }
 
-            header("Location: index.php?url=achievement/index");
-            exit();
+            $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
+            $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
+
+            if ($error === null) {
+                if ($this->isAdmin()) {
+                    Achievement::updateById(
+                        $id,
+                        $_POST['title'],
+                        $_POST['category'],
+                        $dateReceived === '' ? null : $dateReceived,
+                        $_POST['description']
+                    );
+                } else {
+                    $userID = $_SESSION['user_id'];
+                    Achievement::update(
+                        $id,
+                        $userID,
+                        $_POST['title'],
+                        $_POST['category'],
+                        $dateReceived === '' ? null : $dateReceived,
+                        $_POST['description']
+                    );
+                }
+
+                header("Location: index.php?url=achievement/index");
+                exit();
+            }
         }
 
         if ($this->isAdmin()) {
@@ -133,6 +155,38 @@ class AchievementController {
         $achievement = Achievement::find($id, $userID);
 
         require "../app/views/achievement/edit.php";
+    }
+
+    public function export() {
+        $this->checkAdmin();
+
+        $search = isset($_GET['search']) ? trim((string) $_GET['search']) : null;
+        $sort = isset($_GET['sort']) ? (string) $_GET['sort'] : null;
+
+        $achievements = Achievement::getAllWithUser($search, $sort);
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="achievement_records.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Student Name', 'Student Email', 'Title', 'Category', 'Date Received', 'Description']);
+
+        foreach ($achievements as $row) {
+            $dateReceived = trim((string) ($row['dateReceived'] ?? ''));
+            $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
+
+            fputcsv($output, [
+                $row['userName'] ?? '',
+                $row['userEmail'] ?? '',
+                $row['title'] ?? '',
+                $row['category'] ?? '',
+                $dateReceived,
+                $row['description'] ?? '',
+            ]);
+        }
+
+        fclose($output);
+        exit();
     }
 
     public function delete() {

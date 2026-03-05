@@ -47,10 +47,16 @@
                 $dateFrom = trim((string) ($row['dateFrom'] ?? ''));
                 $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
                 $dateFrom = ($dateFrom === '' || $dateFrom === '0000-00-00') ? '' : $dateFrom;
+                $missingAnyDate = ($dateFrom === '' || $dateTo === '');
                 $candidate = $dateTo !== '' ? $dateTo : ($dateFrom !== '' ? $dateFrom : '');
 
                 if ($candidate !== '') {
-                    $withDatesCount++;
+                    if (!$missingAnyDate) {
+                        $withDatesCount++;
+                    } else {
+                        $missingDateCount++;
+                        $missingDateRecords[] = $row;
+                    }
                     if ($latestDate === null || strcmp((string) $candidate, (string) $latestDate) > 0) {
                         $latestDate = (string) $candidate;
                     }
@@ -178,11 +184,33 @@
                 <?php endif; ?>
 
                 <?php foreach ($merits as $m): ?>
+                <?php
+                    $dateFromDisplay = trim((string) ($m['dateFrom'] ?? ''));
+                    $dateToDisplay = trim((string) ($m['dateTo'] ?? ''));
+                    $dateFromDisplay = ($dateFromDisplay === '' || $dateFromDisplay === '0000-00-00') ? '' : $dateFromDisplay;
+                    $dateToDisplay = ($dateToDisplay === '' || $dateToDisplay === '0000-00-00') ? '' : $dateToDisplay;
+                    $dateFromMissing = $dateFromDisplay === '';
+                    $dateToMissing = $dateToDisplay === '';
+                ?>
                 <tr>
                     <td><?= htmlspecialchars($m['activityName']) ?></td>
                     <td><?= htmlspecialchars($m['hours'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($m['dateFrom'], ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($m['dateTo'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>
+                        <?php if ($dateFromMissing): ?>
+                            <span class="status-badge warn">Date missing</span>
+                            <a class="link" href="index.php?url=merit/edit&id=<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
+                        <?php else: ?>
+                            <?= htmlspecialchars($dateFromDisplay, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($dateToMissing): ?>
+                            <span class="status-badge warn">Date missing</span>
+                            <a class="link" href="index.php?url=merit/edit&id=<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
+                        <?php else: ?>
+                            <?= htmlspecialchars($dateToDisplay, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </td>
                     <td>
                         <a class="link" href="index.php?url=merit/edit&id=<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
                         <span class="muted">|</span>

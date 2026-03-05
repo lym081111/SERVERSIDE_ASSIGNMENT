@@ -69,13 +69,21 @@ class MeritController {
                 }
             }
 
+            $dateFrom = trim((string) ($_POST['dateFrom'] ?? ''));
+            $dateTo = trim((string) ($_POST['dateTo'] ?? ''));
+            $dateFrom = ($dateFrom === '' || $dateFrom === '0000-00-00') ? '' : $dateFrom;
+            $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
+            if ($error === null && $dateFrom !== '' && $dateTo !== '' && $dateTo < $dateFrom) {
+                $error = "Date To must be on or after Date From.";
+            }
+
             if ($error === null) {
                 Merit::create(
                     $targetUserID,
                     $_POST['activityName'],
                     $_POST['hours'],
-                    $_POST['dateFrom'],
-                    $_POST['dateTo']
+                    $dateFrom === '' ? null : $dateFrom,
+                    $dateTo === '' ? null : $dateTo
                 );
 
                 $_SESSION['success'] = "Merit record added successfully.";
@@ -99,6 +107,7 @@ class MeritController {
         $this->checkLogin();
 
         $id = $_GET['id'] ?? null;
+        $error = null;
 
         if (!$id) {
             header("Location: index.php?url=merit/index");
@@ -109,28 +118,44 @@ class MeritController {
 
             verify_csrf();
 
-            if ($this->isAdmin()) {
-                Merit::updateById(
-                    $id,
-                    $_POST['activityName'],
-                    $_POST['hours'],
-                    $_POST['dateFrom'],
-                    $_POST['dateTo']
-                );
-            } else {
-                $userID = $_SESSION['user_id'];
-                Merit::update(
-                    $id,
-                    $userID,
-                    $_POST['activityName'],
-                    $_POST['hours'],
-                    $_POST['dateFrom'],
-                    $_POST['dateTo']
-                );
+            if (empty($_POST['activityName']) || empty($_POST['hours'])) {
+                $error = "Activity name and hours are required.";
+            } elseif ($_POST['hours'] <= 0) {
+                $error = "Hours must be greater than 0.";
             }
 
-            header("Location: index.php?url=merit/index");
-            exit();
+            $dateFrom = trim((string) ($_POST['dateFrom'] ?? ''));
+            $dateTo = trim((string) ($_POST['dateTo'] ?? ''));
+            $dateFrom = ($dateFrom === '' || $dateFrom === '0000-00-00') ? '' : $dateFrom;
+            $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
+            if ($error === null && $dateFrom !== '' && $dateTo !== '' && $dateTo < $dateFrom) {
+                $error = "Date To must be on or after Date From.";
+            }
+
+            if ($error === null) {
+                if ($this->isAdmin()) {
+                    Merit::updateById(
+                        $id,
+                        $_POST['activityName'],
+                        $_POST['hours'],
+                        $dateFrom === '' ? null : $dateFrom,
+                        $dateTo === '' ? null : $dateTo
+                    );
+                } else {
+                    $userID = $_SESSION['user_id'];
+                    Merit::update(
+                        $id,
+                        $userID,
+                        $_POST['activityName'],
+                        $_POST['hours'],
+                        $dateFrom === '' ? null : $dateFrom,
+                        $dateTo === '' ? null : $dateTo
+                    );
+                }
+
+                header("Location: index.php?url=merit/index");
+                exit();
+            }
         }
 
         if ($this->isAdmin()) {
@@ -144,6 +169,40 @@ class MeritController {
         $merit = Merit::find($id, $userID);
 
         require "../app/views/merit/edit.php";
+    }
+
+    public function export() {
+        $this->checkAdmin();
+
+        $search = isset($_GET['search']) ? trim((string) $_GET['search']) : null;
+        $sort = isset($_GET['sort']) ? (string) $_GET['sort'] : null;
+
+        $merits = Merit::getAllWithUser($search, $sort);
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="merit_records.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Student Name', 'Student Email', 'Activity', 'Hours', 'Date From', 'Date To']);
+
+        foreach ($merits as $row) {
+            $dateFrom = trim((string) ($row['dateFrom'] ?? ''));
+            $dateTo = trim((string) ($row['dateTo'] ?? ''));
+            $dateFrom = ($dateFrom === '' || $dateFrom === '0000-00-00') ? '' : $dateFrom;
+            $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
+
+            fputcsv($output, [
+                $row['userName'] ?? '',
+                $row['userEmail'] ?? '',
+                $row['activityName'] ?? '',
+                $row['hours'] ?? '',
+                $dateFrom,
+                $dateTo,
+            ]);
+        }
+
+        fclose($output);
+        exit();
     }
 
     public function delete() {

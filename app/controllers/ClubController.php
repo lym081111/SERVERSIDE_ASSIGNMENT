@@ -13,6 +13,14 @@ class ClubController {
         return !empty($_SESSION['isAdmin']);
     }
 
+    private function checkAdmin() {
+        $this->checkLogin();
+        if (!$this->isAdmin()) {
+            header("Location: index.php?url=dashboard/index");
+            exit();
+        }
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -58,14 +66,22 @@ class ClubController {
                     }
                 }
 
+                $startDate = trim((string) ($_POST['startDate'] ?? ''));
+                $endDate = trim((string) ($_POST['endDate'] ?? ''));
+                $startDate = ($startDate === '' || $startDate === '0000-00-00') ? '' : $startDate;
+                $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '' : $endDate;
+                if ($error === null && $startDate !== '' && $endDate !== '' && $endDate < $startDate) {
+                    $error = "End date must be on or after start date.";
+                }
+
                 if ($error === null) {
                     Club::create(
                         $targetUserID,
                         $_POST['clubName'],
                         $_POST['role'],
                         $_POST['roleDescription'],
-                        $_POST['startDate'],
-                        $_POST['endDate']
+                        $startDate === '' ? null : $startDate,
+                        $endDate === '' ? null : $endDate
                     );
 
                     $_SESSION['success'] = "Club record added successfully.";
@@ -95,34 +111,50 @@ class ClubController {
             exit();
         }
 
+        $error = null;
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if ($this->isAdmin()) {
-                Club::updateById(
-                    $id,
-                    $_POST['clubName'],
-                    $_POST['role'],
-                    $_POST['roleDescription'],
-                    $_POST['startDate'],
-                    $_POST['endDate']
-                );
-            } else {
-                $userID = $_SESSION['user_id'];
-                Club::update(
-                    $id,
-                    $userID,
-                    $_POST['clubName'],
-                    $_POST['role'],
-                    $_POST['roleDescription'],
-                    $_POST['startDate'],
-                    $_POST['endDate']
-                );
+            if (empty($_POST['clubName'])) {
+                $error = "Club name is required.";
             }
 
-            header("Location: index.php?url=club/index");
-            exit();
+            $startDate = trim((string) ($_POST['startDate'] ?? ''));
+            $endDate = trim((string) ($_POST['endDate'] ?? ''));
+            $startDate = ($startDate === '' || $startDate === '0000-00-00') ? '' : $startDate;
+            $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '' : $endDate;
+            if ($error === null && $startDate !== '' && $endDate !== '' && $endDate < $startDate) {
+                $error = "End date must be on or after start date.";
+            }
+
+            if ($error === null) {
+                if ($this->isAdmin()) {
+                    Club::updateById(
+                        $id,
+                        $_POST['clubName'],
+                        $_POST['role'],
+                        $_POST['roleDescription'],
+                        $startDate === '' ? null : $startDate,
+                        $endDate === '' ? null : $endDate
+                    );
+                } else {
+                    $userID = $_SESSION['user_id'];
+                    Club::update(
+                        $id,
+                        $userID,
+                        $_POST['clubName'],
+                        $_POST['role'],
+                        $_POST['roleDescription'],
+                        $startDate === '' ? null : $startDate,
+                        $endDate === '' ? null : $endDate
+                    );
+                }
+
+                header("Location: index.php?url=club/index");
+                exit();
+            }
         }
 
         if ($this->isAdmin()) {
@@ -136,6 +168,41 @@ class ClubController {
         $club = Club::find($id, $userID);
 
         require "../app/views/club/edit.php";
+    }
+
+    public function export() {
+        $this->checkAdmin();
+
+        $search = isset($_GET['search']) ? trim((string) $_GET['search']) : null;
+        $sort = isset($_GET['sort']) ? (string) $_GET['sort'] : null;
+
+        $clubs = Club::getAllWithUser($search, $sort);
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="club_records.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Student Name', 'Student Email', 'Club Name', 'Role', 'Role Description', 'Start Date', 'End Date']);
+
+        foreach ($clubs as $row) {
+            $startDate = trim((string) ($row['startDate'] ?? ''));
+            $endDate = trim((string) ($row['endDate'] ?? ''));
+            $startDate = ($startDate === '' || $startDate === '0000-00-00') ? '' : $startDate;
+            $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '' : $endDate;
+
+            fputcsv($output, [
+                $row['userName'] ?? '',
+                $row['userEmail'] ?? '',
+                $row['clubName'] ?? '',
+                $row['role'] ?? '',
+                $row['roleDescription'] ?? '',
+                $startDate,
+                $endDate,
+            ]);
+        }
+
+        fclose($output);
+        exit();
     }
 
     public function delete() {

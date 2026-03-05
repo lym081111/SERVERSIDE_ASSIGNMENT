@@ -22,6 +22,19 @@
     <div class="content admin-content">
         <div class="content-inner">
 
+    <?php
+        $exportParams = ['url' => 'achievement/export'];
+        if (!empty($_GET['search'])) {
+            $exportParams['search'] = (string) $_GET['search'];
+        }
+        if (!empty($_GET['sort'])) {
+            $exportParams['sort'] = (string) $_GET['sort'];
+        }
+        $exportUrl = 'index.php?' . http_build_query($exportParams);
+    ?>
+
+    <div class="print-title">Achievement Records (Admin)</div>
+
     <div class="admin-hero">
         <div>
             <div class="admin-eyebrow">Achievement Oversight</div>
@@ -30,6 +43,8 @@
         </div>
         <div class="admin-hero-actions">
             <a class="btn" href="index.php?url=achievement/create">Add Achievement for Student</a>
+            <a class="btn btn-secondary" href="<?= htmlspecialchars($exportUrl, ENT_QUOTES, 'UTF-8') ?>">Export CSV</a>
+            <button class="btn btn-secondary" type="button" onclick="window.print()">Print</button>
             <a class="btn btn-secondary" href="index.php?url=achievement/index">Refresh</a>
         </div>
     </div>

@@ -85,6 +85,95 @@ class AuthController {
         require "../app/views/auth/register.php";
     }
 
+    public function forgot() {
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            verify_csrf();
+
+            $email = trim((string) ($_POST['email'] ?? ''));
+
+            if ($email === '') {
+                $error = "Please enter your registered email.";
+                require "../app/views/auth/forgot.php";
+                return;
+            }
+
+            $user = User::findByEmail($email);
+
+            if (!$user) {
+                $error = "Email not found. Please use a registered email address.";
+                require "../app/views/auth/forgot.php";
+                return;
+            }
+
+            $_SESSION['reset_email'] = $user['email'];
+            $_SESSION['reset_token'] = bin2hex(random_bytes(16));
+            $_SESSION['reset_token_time'] = time();
+
+            $success = "Reset request created. Use the simulated link below to continue.";
+            require "../app/views/auth/forgot.php";
+            return;
+        }
+
+        require "../app/views/auth/forgot.php";
+    }
+
+    public function reset() {
+
+        if (empty($_SESSION['reset_email']) || empty($_SESSION['reset_token'])) {
+            $error = "Please request a password reset first.";
+            require "../app/views/auth/forgot.php";
+            return;
+        }
+
+        $tokenParam = (string) ($_GET['token'] ?? '');
+
+        if ($tokenParam !== '' && !hash_equals($_SESSION['reset_token'], $tokenParam)) {
+            $error = "Invalid or expired reset link.";
+            require "../app/views/auth/forgot.php";
+            return;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            verify_csrf();
+
+            $token = (string) ($_POST['token'] ?? '');
+            $password = (string) ($_POST['password'] ?? '');
+            $confirm = (string) ($_POST['confirm_password'] ?? '');
+
+            if (!hash_equals($_SESSION['reset_token'], $token)) {
+                $error = "Invalid or expired reset link.";
+                require "../app/views/auth/reset.php";
+                return;
+            }
+
+            if ($password === '' || $confirm === '') {
+                $error = "Please fill in all fields.";
+                require "../app/views/auth/reset.php";
+                return;
+            }
+
+            if ($password !== $confirm) {
+                $error = "Passwords do not match.";
+                require "../app/views/auth/reset.php";
+                return;
+            }
+
+            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+            User::updatePasswordByEmail($_SESSION['reset_email'], $passwordHash);
+
+            unset($_SESSION['reset_email'], $_SESSION['reset_token'], $_SESSION['reset_token_time']);
+
+            $_SESSION['success'] = "Password reset successful! You can now log in.";
+            header("Location: index.php?url=auth/login");
+            exit();
+        }
+
+        require "../app/views/auth/reset.php";
+    }
+
     public function logout() {
         if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
             header("Location: index.php?url=dashboard/index");

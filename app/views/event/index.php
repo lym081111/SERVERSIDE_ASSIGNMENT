@@ -153,9 +153,21 @@
                 <?php endif; ?>
 
                 <?php foreach ($events as $e): ?>
+                <?php
+                    $eventDateDisplay = trim((string) ($e['eventDate'] ?? ''));
+                    $eventDateDisplay = ($eventDateDisplay === '' || $eventDateDisplay === '0000-00-00') ? '' : $eventDateDisplay;
+                    $eventDateMissing = $eventDateDisplay === '';
+                ?>
                 <tr>
                     <td><?= htmlspecialchars($e['eventTitle'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($e['eventDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>
+                        <?php if ($eventDateMissing): ?>
+                            <span class="status-badge warn">Date missing</span>
+                            <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
+                        <?php else: ?>
+                            <?= htmlspecialchars($eventDateDisplay, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </td>
                     <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>

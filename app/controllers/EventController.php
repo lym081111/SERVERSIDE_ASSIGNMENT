@@ -13,6 +13,14 @@ class EventController {
         return !empty($_SESSION['isAdmin']);
     }
 
+    private function checkAdmin() {
+        $this->checkLogin();
+        if (!$this->isAdmin()) {
+            header("Location: index.php?url=dashboard/index");
+            exit();
+        }
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -42,7 +50,10 @@ class EventController {
 
             verify_csrf();
 
-            if (empty($_POST['eventTitle']) || empty($_POST['eventDate'])) {
+            $eventDate = trim((string) ($_POST['eventDate'] ?? ''));
+            $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
+
+            if (empty($_POST['eventTitle']) || $eventDate === '') {
                 $error = "Event title and date are required.";
             } else {
                 $targetUserID = $_SESSION['user_id'];
@@ -62,7 +73,7 @@ class EventController {
                     Event::create(
                         $targetUserID,
                         $_POST['eventTitle'],
-                        $_POST['eventDate'],
+                        $eventDate,
                         $_POST['location'],
                         $_POST['description']
                     );
@@ -94,32 +105,43 @@ class EventController {
             exit();
         }
 
+        $error = null;
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if ($this->isAdmin()) {
-                Event::updateById(
-                    $id,
-                    $_POST['eventTitle'],
-                    $_POST['eventDate'],
-                    $_POST['location'],
-                    $_POST['description']
-                );
-            } else {
-                $userID = $_SESSION['user_id'];
-                Event::update(
-                    $id,
-                    $userID,
-                    $_POST['eventTitle'],
-                    $_POST['eventDate'],
-                    $_POST['location'],
-                    $_POST['description']
-                );
+            $eventDate = trim((string) ($_POST['eventDate'] ?? ''));
+            $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
+
+            if (empty($_POST['eventTitle']) || $eventDate === '') {
+                $error = "Event title and date are required.";
             }
 
-            header("Location: index.php?url=event/index");
-            exit();
+            if ($error === null) {
+                if ($this->isAdmin()) {
+                    Event::updateById(
+                        $id,
+                        $_POST['eventTitle'],
+                        $eventDate,
+                        $_POST['location'],
+                        $_POST['description']
+                    );
+                } else {
+                    $userID = $_SESSION['user_id'];
+                    Event::update(
+                        $id,
+                        $userID,
+                        $_POST['eventTitle'],
+                        $eventDate,
+                        $_POST['location'],
+                        $_POST['description']
+                    );
+                }
+
+                header("Location: index.php?url=event/index");
+                exit();
+            }
         }
 
         if ($this->isAdmin()) {
@@ -133,6 +155,38 @@ class EventController {
         $event = Event::find($id, $userID);
 
         require "../app/views/event/edit.php";
+    }
+
+    public function export() {
+        $this->checkAdmin();
+
+        $search = isset($_GET['search']) ? trim((string) $_GET['search']) : null;
+        $sort = isset($_GET['sort']) ? (string) $_GET['sort'] : null;
+
+        $events = Event::getAllWithUser($search, $sort);
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="event_records.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Student Name', 'Student Email', 'Event Title', 'Event Date', 'Location', 'Description']);
+
+        foreach ($events as $row) {
+            $eventDate = trim((string) ($row['eventDate'] ?? ''));
+            $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
+
+            fputcsv($output, [
+                $row['userName'] ?? '',
+                $row['userEmail'] ?? '',
+                $row['eventTitle'] ?? '',
+                $eventDate,
+                $row['location'] ?? '',
+                $row['description'] ?? '',
+            ]);
+        }
+
+        fclose($output);
+        exit();
     }
 
     public function delete() {

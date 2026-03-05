@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register - Student Co-curricular System</title>
+    <title>Forgot Password - Student Co-curricular System</title>
+
     <style>
         :root {
             --primary-color: #0b1d4d;
@@ -165,6 +166,18 @@
             text-decoration: underline;
         }
 
+        .reset-link {
+            display: inline-block;
+            margin-top: 10px;
+            font-weight: 600;
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+
+        .reset-link:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 768px) {
             .login-wrapper { flex-direction: column; }
             .login-brand { padding: 30px 20px; }
@@ -177,13 +190,25 @@
 
     <div class="login-wrapper">
         <div class="login-brand">
-            <h1>Join the Portal</h1>
-            <p>Create your account to start managing your co-curricular events, club memberships, and merit hours today.</p>
+            <h1>Password Reset</h1>
+            <p>We will help you regain access to your student account in a few simple steps.</p>
         </div>
 
         <div class="login-form-container">
-            <h2>Create an Account</h2>
-            <p class="login-subtitle">Please fill in your details to register.</p>
+            <h2>Forgot Password</h2>
+            <p class="login-subtitle">Enter your registered email to start the reset process.</p>
+
+            <?php if(isset($success)): ?>
+                <div class="alert-box alert-success">
+                    <strong>Success:</strong> <?= htmlspecialchars($success, ENT_QUOTES, 'UTF-8') ?>
+                    <?php if (!empty($_SESSION['reset_token'])): ?>
+                        <br>
+                        <a class="reset-link" href="index.php?url=auth/reset&token=<?= urlencode($_SESSION['reset_token']) ?>">
+                            Continue to reset password
+                        </a>
+                    <?php endif; ?>
+                </div>
+            <?php endif; ?>
 
             <?php if(isset($error)): ?>
                 <div class="alert-box alert-error">
@@ -195,25 +220,15 @@
                 <?php csrf_field(); ?>
 
                 <div class="form-group">
-                    <label for="name">Full Name</label>
-                    <input type="text" id="name" name="name" class="modern-input" placeholder="Your full name" required>
+                    <label>Email</label>
+                    <input type="email" name="email" class="modern-input" placeholder="student@domain.edu" required>
                 </div>
 
-                <div class="form-group" style="margin-top: 15px;">
-                    <label for="email">Student Email</label>
-                    <input type="email" id="email" name="email" class="modern-input" placeholder="student@domain.edu" required>
-                </div>
-
-                <div class="form-group" style="margin-top: 15px;">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="modern-input" placeholder="Create a strong password" required>
-                </div>
-
-                <button type="submit" class="btn-full">Sign Up</button>
+                <button type="submit" class="btn-full">Generate Reset Link</button>
             </form>
 
             <div class="register-link">
-                Already have an account? <a href="index.php?url=auth/login">Login here</a>
+                Remembered your password? <a href="index.php?url=auth/login">Back to login</a>
             </div>
         </div>
     </div>

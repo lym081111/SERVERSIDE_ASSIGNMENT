@@ -181,6 +181,22 @@
             margin: 0;
         }
 
+        .forgot-link {
+            margin-top: 12px;
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .forgot-link a {
+            font-weight: 600;
+            color: var(--secondary-color);
+            text-decoration: none;
+        }
+
+        .forgot-link a:hover {
+            text-decoration: underline;
+        }
+
         @media (max-width: 768px) {
             .login-wrapper { flex-direction: column; }
             .login-brand { padding: 30px 20px; }
@@ -231,6 +247,10 @@
                     <input type="checkbox" name="remember" value="1">
                     Remember me for 30 days
                 </label>
+
+                <div class="forgot-link">
+                    <a href="index.php?url=auth/forgot">Forgot password?</a>
+                </div>
 
                 <button type="submit" class="btn-full">Sign In</button>
             </form>

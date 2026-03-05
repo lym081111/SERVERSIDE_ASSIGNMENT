@@ -49,8 +49,9 @@
                     $missingDateRecords[] = $row;
                 }
 
-                $endDate = $row['endDate'] ?? null;
-                if ($endDate === null || trim((string) $endDate) === '') {
+                $endDate = trim((string) ($row['endDate'] ?? ''));
+                $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '' : $endDate;
+                if ($endDate === '') {
                     $activeCount++;
                 }
 
@@ -161,12 +162,26 @@
                 <?php endif; ?>
 
                 <?php foreach ($clubs as $c): ?>
+                <?php
+                    $startDateDisplay = trim((string) ($c['startDate'] ?? ''));
+                    $startDateDisplay = ($startDateDisplay === '' || $startDateDisplay === '0000-00-00') ? '' : $startDateDisplay;
+                    $startDateMissing = $startDateDisplay === '';
+                    $endDateDisplay = trim((string) ($c['endDate'] ?? ''));
+                    $endDateDisplay = ($endDateDisplay === '' || $endDateDisplay === '0000-00-00') ? '-' : $endDateDisplay;
+                ?>
                 <tr>
                     <td><?= htmlspecialchars($c['clubName'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($c['role'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($c['roleDescription'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($c['startDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($c['endDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>
+                        <?php if ($startDateMissing): ?>
+                            <span class="status-badge warn">Date missing</span>
+                            <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
+                        <?php else: ?>
+                            <?= htmlspecialchars($startDateDisplay, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </td>
+                    <td><?= htmlspecialchars($endDateDisplay, ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
                         <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
                         <span class="muted">|</span>

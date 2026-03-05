@@ -26,6 +26,15 @@ class User {
 
         return $stmt->execute([$name, $email, $passwordHash]);
     }
+
+    public static function updatePasswordByEmail($email, $passwordHash) {
+
+        $db = Database::connect();
+
+        $stmt = $db->prepare("UPDATE users SET passwordHash = ? WHERE email = ?");
+
+        return $stmt->execute([$passwordHash, $email]);
+    }
 }
 
 ?>

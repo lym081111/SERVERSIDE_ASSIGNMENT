@@ -153,10 +153,22 @@
                 <?php endif; ?>
 
                 <?php foreach ($achievements as $a): ?>
+                <?php
+                    $dateReceivedDisplay = trim((string) ($a['dateReceived'] ?? ''));
+                    $dateReceivedDisplay = ($dateReceivedDisplay === '' || $dateReceivedDisplay === '0000-00-00') ? '' : $dateReceivedDisplay;
+                    $dateReceivedMissing = $dateReceivedDisplay === '';
+                ?>
                 <tr>
                     <td><?= htmlspecialchars($a['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($a['category'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td><?= htmlspecialchars($a['dateReceived'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>
+                        <?php if ($dateReceivedMissing): ?>
+                            <span class="status-badge warn">Date missing</span>
+                            <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
+                        <?php else: ?>
+                            <?= htmlspecialchars($dateReceivedDisplay, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </td>
                     <td><?= htmlspecialchars($a['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
                         <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>

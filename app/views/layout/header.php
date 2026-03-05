@@ -1178,6 +1178,74 @@
             }
         }
 
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(15, 23, 42, 0.15);
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .status-badge.warn {
+            background: #fff7ed;
+            color: #9a3412;
+            border-color: rgba(154, 52, 18, 0.35);
+        }
+
+        .print-title {
+            display: none;
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 16px;
+            color: #0f172a;
+        }
+
+        @media print {
+            body {
+                background: #ffffff !important;
+            }
+
+            .sidebar,
+            .topbar-actions,
+            .filter-bar,
+            .admin-hero-actions,
+            .page-actions {
+                display: none !important;
+            }
+
+            .topbar {
+                position: static !important;
+                box-shadow: none !important;
+            }
+
+            .main,
+            .content,
+            .content-inner {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+            }
+
+            .print-title {
+                display: block;
+            }
+
+            .admin-section {
+                box-shadow: none !important;
+                border: none !important;
+            }
+
+            .admin-table th:last-child,
+            .admin-table td:last-child {
+                display: none;
+            }
+        }
+
     </style>
 </head>
 <body>

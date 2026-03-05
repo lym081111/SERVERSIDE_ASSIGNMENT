@@ -45,6 +45,12 @@
         </div>
     </div>
 
+    <?php if(isset($error)): ?>
+        <div class="error">
+            <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
+        </div>
+    <?php endif; ?>
+
     <div class="admin-section">
         <div class="admin-section-header">
             <h2 class="admin-section-title">Student</h2>

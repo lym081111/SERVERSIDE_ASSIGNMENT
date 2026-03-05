@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Register - Student Co-curricular System</title>
+    <title>Reset Password - Student Co-curricular System</title>
+
     <style>
         :root {
             --primary-color: #0b1d4d;
@@ -142,12 +143,6 @@
             border-left: 4px solid #dc2626;
         }
 
-        .alert-success {
-            background-color: #d1fae5;
-            color: #059669;
-            border-left: 4px solid #10b981;
-        }
-
         .register-link {
             text-align: center;
             margin-top: 25px;
@@ -177,13 +172,13 @@
 
     <div class="login-wrapper">
         <div class="login-brand">
-            <h1>Join the Portal</h1>
-            <p>Create your account to start managing your co-curricular events, club memberships, and merit hours today.</p>
+            <h1>Set New Password</h1>
+            <p>Create a new password for your student account.</p>
         </div>
 
         <div class="login-form-container">
-            <h2>Create an Account</h2>
-            <p class="login-subtitle">Please fill in your details to register.</p>
+            <h2>Reset Password</h2>
+            <p class="login-subtitle">Resetting for: <?= htmlspecialchars($_SESSION['reset_email'] ?? '', ENT_QUOTES, 'UTF-8') ?></p>
 
             <?php if(isset($error)): ?>
                 <div class="alert-box alert-error">
@@ -193,27 +188,23 @@
 
             <form method="POST">
                 <?php csrf_field(); ?>
+                <input type="hidden" name="token" value="<?= htmlspecialchars($_SESSION['reset_token'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
                 <div class="form-group">
-                    <label for="name">Full Name</label>
-                    <input type="text" id="name" name="name" class="modern-input" placeholder="Your full name" required>
+                    <label>New Password</label>
+                    <input type="password" name="password" class="modern-input" placeholder="Enter new password" required>
                 </div>
 
                 <div class="form-group" style="margin-top: 15px;">
-                    <label for="email">Student Email</label>
-                    <input type="email" id="email" name="email" class="modern-input" placeholder="student@domain.edu" required>
+                    <label>Confirm Password</label>
+                    <input type="password" name="confirm_password" class="modern-input" placeholder="Re-enter new password" required>
                 </div>
 
-                <div class="form-group" style="margin-top: 15px;">
-                    <label for="password">Password</label>
-                    <input type="password" id="password" name="password" class="modern-input" placeholder="Create a strong password" required>
-                </div>
-
-                <button type="submit" class="btn-full">Sign Up</button>
+                <button type="submit" class="btn-full">Reset Password</button>
             </form>
 
             <div class="register-link">
-                Already have an account? <a href="index.php?url=auth/login">Login here</a>
+                Back to <a href="index.php?url=auth/login">login</a>
             </div>
         </div>
     </div>
