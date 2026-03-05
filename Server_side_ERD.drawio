@@ -1,0 +1,52 @@
+<mxfile host="app.diagrams.net" modified="2026-03-05T00:00:00.000Z" agent="Codex" version="20.8.10" type="device">
+  <diagram id="ERD" name="ERD">
+    <mxGraphModel dx="1420" dy="780" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1200" pageHeight="800" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- users -->
+        <mxCell id="users" value="users&#xa;--------------------------------&#xa;userID (PK)&#xa;name&#xa;email (UNQ)&#xa;passwordHash&#xa;isAdmin&#xa;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="430" y="40" width="340" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- merits -->
+        <mxCell id="merits" value="merits&#xa;--------------------------------&#xa;meritID (PK)&#xa;userID (FK)&#xa;activityName&#xa;hours&#xa;dateFrom&#xa;dateTo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="60" y="300" width="260" height="190" as="geometry"/>
+        </mxCell>
+
+        <!-- events -->
+        <mxCell id="events" value="events&#xa;--------------------------------&#xa;eventID (PK)&#xa;userID (FK)&#xa;eventTitle&#xa;eventDate&#xa;location&#xa;description&#xa;created_at" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="360" y="300" width="260" height="210" as="geometry"/>
+        </mxCell>
+
+        <!-- clubs -->
+        <mxCell id="clubs" value="clubs&#xa;--------------------------------&#xa;clubID (PK)&#xa;userID (FK)&#xa;clubName&#xa;role&#xa;roleDescription&#xa;startDate&#xa;endDate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="660" y="300" width="260" height="210" as="geometry"/>
+        </mxCell>
+
+        <!-- achievements -->
+        <mxCell id="achievements" value="achievements&#xa;--------------------------------&#xa;achievementID (PK)&#xa;userID (FK)&#xa;title&#xa;category&#xa;dateReceived&#xa;description" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1f2937;fontSize=12;spacing=6;" vertex="1" parent="1">
+          <mxGeometry x="960" y="300" width="260" height="200" as="geometry"/>
+        </mxCell>
+
+        <!-- Relationships -->
+        <mxCell id="rel_merits" value="1..N" style="endArrow=block;endFill=1;strokeColor=#111827;html=1;" edge="1" parent="1" source="users" target="merits">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_events" value="1..N" style="endArrow=block;endFill=1;strokeColor=#111827;html=1;" edge="1" parent="1" source="users" target="events">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_clubs" value="1..N" style="endArrow=block;endFill=1;strokeColor=#111827;html=1;" edge="1" parent="1" source="users" target="clubs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="rel_achievements" value="1..N" style="endArrow=block;endFill=1;strokeColor=#111827;html=1;" edge="1" parent="1" source="users" target="achievements">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
