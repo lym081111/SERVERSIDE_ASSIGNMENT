@@ -1,7 +1,7 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar admin-topbar">
         <div class="topbar-left">
@@ -50,6 +50,15 @@
 
                 <div class="form-grid">
                     <div>
+                        <label class="label">Student ID (searchable)</label>
+                        <input class="input" type="text" name="studentId" list="student-ids" placeholder="Start typing student ID...">
+                        <datalist id="student-ids">
+                            <?php foreach ($students as $s): ?>
+                                <option value="<?= htmlspecialchars($s['student_id'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <?php endforeach; ?>
+                        </datalist>
+                    </div>
+                    <div>
                         <label class="label">Student Email (searchable)</label>
                         <input class="input" type="text" name="studentEmail" list="student-emails" placeholder="Start typing email...">
                         <datalist id="student-emails">
@@ -64,7 +73,7 @@
                             <option value="">Select student</option>
                             <?php foreach ($students as $s): ?>
                                 <option value="<?= htmlspecialchars($s['userID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                                    <?= htmlspecialchars($s['name'] ?? '', ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)
+                                    <?= htmlspecialchars($s['name'] ?? '', ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($s['student_id'] ?? '-', ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -84,12 +93,13 @@
 
                     <div>
                         <label class="label">Date From</label>
-                        <input class="input" type="date" name="dateFrom">
+                        <input class="input" type="date" name="dateFrom" required>
                     </div>
 
                     <div>
                         <label class="label">Date To</label>
                         <input class="input" type="date" name="dateTo">
+                        <div class="muted" style="margin-top:6px;">Optional for one-day activity.</div>
                     </div>
                 </div>
 
@@ -107,3 +117,4 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
+

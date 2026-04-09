@@ -1,7 +1,7 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar">
         <div class="topbar-left">
@@ -26,9 +26,12 @@
         $latestDate = null;
         $locations = [];
         $recentCount = 0;
-        $withDatesCount = 0;
-        $missingDateCount = 0;
-        $missingDateRecords = [];
+        $approvedCount = 0;
+        $pendingCount = 0;
+        $rejectedCount = 0;
+        $eventTypes = [];
+        $reflectionCount = 0;
+        $latestReflection = null;
         $threshold = date('Y-m-d', strtotime('-30 days'));
 
         if (is_array($events)) {
@@ -36,26 +39,50 @@
                 $eventDate = trim((string) ($row['eventDate'] ?? ''));
                 $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
                 if ($eventDate !== '') {
-                    $withDatesCount++;
                     if ($latestDate === null || strcmp((string) $eventDate, (string) $latestDate) > 0) {
                         $latestDate = (string) $eventDate;
                     }
                     if ((string) $eventDate >= $threshold) {
                         $recentCount++;
                     }
-                } else {
-                    $missingDateCount++;
-                    $missingDateRecords[] = $row;
+                }
+
+                $eventType = trim((string) ($row['eventType'] ?? ''));
+                if ($eventType !== '') {
+                    $eventTypes[$eventType] = ($eventTypes[$eventType] ?? 0) + 1;
+                }
+
+                $reflection = trim((string) ($row['reflection'] ?? ''));
+                if ($reflection !== '') {
+                    $reflectionCount++;
+                    if ($latestReflection === null) {
+                        $latestReflection = [
+                            'title' => (string) ($row['eventTitle'] ?? 'Untitled'),
+                            'text' => $reflection,
+                        ];
+                    }
                 }
 
                 $location = trim((string) ($row['location'] ?? ''));
                 if ($location !== '') {
                     $locations[$location] = true;
                 }
+
+                $statusValue = (string) ($row['status'] ?? 'pending');
+                if ($statusValue === 'approved') {
+                    $approvedCount++;
+                } elseif ($statusValue === 'rejected') {
+                    $rejectedCount++;
+                } else {
+                    $pendingCount++;
+                }
             }
         }
 
         $locationCount = count($locations);
+        $eventTypeCount = count($eventTypes);
+        arsort($eventTypes);
+        $topEventTypes = array_slice($eventTypes, 0, 4, true);
 
         $milestones = [3, 5, 10, 20];
         $nextMilestone = null;
@@ -93,6 +120,12 @@
             <div class="kpi-value"><?= (int) $locationCount ?></div>
             <div class="kpi-sub">Unique venues</div>
         </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">Event Types</div>
+            <div class="kpi-value"><?= (int) $eventTypeCount ?></div>
+            <div class="kpi-sub">Different activity categories</div>
+        </div>
     </div>
 
     <div class="page-header">
@@ -102,12 +135,19 @@
         </div>
         <div class="page-actions">
             <a href="index.php?url=event/create" class="btn">+ Add Event</a>
+            <a href="index.php?url=event/exportSelf" class="btn btn-secondary no-print">Export my CSV</a>
         </div>
     </div>
 
     <?php if(isset($_SESSION['success'])): ?>
         <div class="success">
             <?= htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_SESSION['error'])): ?>
+        <div class="error">
+            <?= htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
         </div>
     <?php endif; ?>
 
@@ -121,15 +161,25 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search event title..."
+                        placeholder="Search title, type, location, reflection, or date..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'eventID'; ?>
                     <select name="sort" class="input">
                         <option value="eventID" <?= $currentSort === 'eventID' ? 'selected' : '' ?>>Newest</option>
                         <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event Title</option>
+                        <option value="eventType" <?= $currentSort === 'eventType' ? 'selected' : '' ?>>Event Type</option>
                         <option value="eventDate" <?= $currentSort === 'eventDate' ? 'selected' : '' ?>>Event Date</option>
                         <option value="location" <?= $currentSort === 'location' ? 'selected' : '' ?>>Location</option>
+                        <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
+                    </select>
+
+                    <?php $currentStatus = $_GET['status'] ?? ''; ?>
+                    <select name="status" class="input">
+                        <option value="" <?= $currentStatus === '' ? 'selected' : '' ?>>All Status</option>
+                        <option value="pending" <?= $currentStatus === 'pending' ? 'selected' : '' ?>>Pending</option>
+                        <option value="approved" <?= $currentStatus === 'approved' ? 'selected' : '' ?>>Approved</option>
+                        <option value="rejected" <?= $currentStatus === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                     </select>
 
                     <button class="btn" type="submit">Search / Filter</button>
@@ -137,18 +187,21 @@
                 </form>
             </div>
 
-            <table>
+            <table class="co-records-table">
                 <tr>
                     <th>Event Title</th>
+                    <th>Type</th>
                     <th>Date</th>
                     <th>Location</th>
-                    <th>Description</th>
+                    <th>Summary</th>
+                    <th>Reflection</th>
+                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
 
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="5" class="muted">No event records found.</td>
+                        <td colspan="8" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -156,30 +209,52 @@
                 <?php
                     $eventDateDisplay = trim((string) ($e['eventDate'] ?? ''));
                     $eventDateDisplay = ($eventDateDisplay === '' || $eventDateDisplay === '0000-00-00') ? '' : $eventDateDisplay;
-                    $eventDateMissing = $eventDateDisplay === '';
+                    $status = (string) ($e['status'] ?? 'approved');
+                    $reviewNote = trim((string) ($e['review_note'] ?? ''));
+                    $evidencePath = trim((string) ($e['evidence_path'] ?? ''));
+                    $isLocked = $status === 'approved';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars($e['eventTitle'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
-                        <?php if ($eventDateMissing): ?>
-                            <span class="status-badge warn">Date missing</span>
-                            <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
-                        <?php else: ?>
-                            <?= htmlspecialchars($eventDateDisplay, ENT_QUOTES, 'UTF-8') ?>
-                        <?php endif; ?>
+                        <span class="chip"><?= htmlspecialchars(($e['eventType'] ?? 'General') ?: 'General', ENT_QUOTES, 'UTF-8') ?></span>
                     </td>
+                    <td><?= htmlspecialchars($eventDateDisplay !== '' ? $eventDateDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
-                        <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
-                        <span class="muted">|</span>
-                        <form method="POST" action="index.php?url=event/delete" style="display:inline;">
-                            <?php csrf_field(); ?>
-                            <input type="hidden" name="id" value="<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">
-                            <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
-                                Delete
-                            </button>
-                        </form>
+                        <?php
+                            $reflectionText = trim((string) ($e['reflection'] ?? ''));
+                        ?>
+                        <?= $reflectionText === '' ? '<span class="muted">No reflection</span>' : htmlspecialchars(strlen($reflectionText) > 90 ? substr($reflectionText, 0, 87) . '...' : $reflectionText, ENT_QUOTES, 'UTF-8') ?>
+                    </td>
+                    <td>
+                        <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if ($reviewNote !== ''): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                Note: <?= htmlspecialchars($reviewNote, ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($evidencePath !== ''): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View proof</a>
+                            </div>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($isLocked): ?>
+                            <span class="muted">Locked after approval (admin only)</span>
+                        <?php else: ?>
+                            <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <span class="muted">|</span>
+                            <form method="POST" action="index.php?url=event/delete" style="display:inline;">
+                                <?php csrf_field(); ?>
+                                <input type="hidden" name="id" value="<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
+                                    Delete
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -203,26 +278,76 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Data Quality</h3>
-                    <span class="chip">Checks</span>
+                    <h3 class="card-title">Reflection Log</h3>
+                    <span class="chip"><?= (int) $reflectionCount ?> entries</span>
+                </div>
+                <div class="muted" style="margin-bottom:10px;">Capture what you learned for each event to build a stronger portfolio.</div>
+                <?php if ($latestReflection !== null): ?>
+                    <div class="list-item">
+                        <div>
+                            <div class="list-item-title"><?= htmlspecialchars($latestReflection['title'] ?? 'Latest reflection', ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php $latestReflectionText = (string) ($latestReflection['text'] ?? ''); ?>
+                            <div class="list-item-sub"><?= htmlspecialchars(strlen($latestReflectionText) > 140 ? substr($latestReflectionText, 0, 137) . '...' : $latestReflectionText, ENT_QUOTES, 'UTF-8') ?></div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div class="muted">No reflection yet. Add one when you edit an event.</div>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Type Distribution</h3>
+                    <span class="chip">Categories</span>
+                </div>
+                <?php if (empty($topEventTypes)): ?>
+                    <div class="muted">No event type data yet.</div>
+                <?php else: ?>
+                    <ul class="list">
+                        <?php foreach ($topEventTypes as $type => $count): ?>
+                            <li class="list-item">
+                                <div>
+                                    <div class="list-item-title"><?= htmlspecialchars($type, ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="list-item-sub">Recorded events</div>
+                                </div>
+                                <div class="list-item-right"><?= (int) $count ?></div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Review Overview</h3>
+                    <span class="chip">Status</span>
                 </div>
                 <ul class="list">
                     <li class="list-item">
                         <div>
-                            <div class="list-item-title">Records with dates</div>
-                            <div class="list-item-sub">Date coverage</div>
+                            <div class="list-item-title">Approved</div>
+                            <div class="list-item-sub">Locked and verified</div>
                         </div>
                         <div class="list-item-right">
-                            <strong><?= (int) $withDatesCount ?></strong> / <?= (int) $totalRecords ?>
+                            <strong><?= (int) $approvedCount ?></strong>
                         </div>
                     </li>
                     <li class="list-item">
                         <div>
-                            <div class="list-item-title">Missing dates</div>
-                            <div class="list-item-sub">Fix missing dates</div>
+                            <div class="list-item-title">Pending</div>
+                            <div class="list-item-sub">Waiting for admin review</div>
                         </div>
                         <div class="list-item-right">
-                            <?= (int) $missingDateCount ?>
+                            <?= (int) $pendingCount ?>
+                        </div>
+                    </li>
+                    <li class="list-item">
+                        <div>
+                            <div class="list-item-title">Rejected</div>
+                            <div class="list-item-sub">Need edits before resubmission</div>
+                        </div>
+                        <div class="list-item-right">
+                            <?= (int) $rejectedCount ?>
                         </div>
                     </li>
                     <li class="list-item">
@@ -235,25 +360,6 @@
                         </div>
                     </li>
                 </ul>
-                <?php if ($missingDateCount > 0): ?>
-                    <div class="muted" style="margin-top:10px;">Records needing update:</div>
-                    <ul class="list" style="margin-top:8px;">
-                        <?php foreach (array_slice($missingDateRecords, 0, 3) as $missing): ?>
-                            <li class="list-item">
-                                <div>
-                                    <div class="list-item-title"><?= htmlspecialchars($missing['eventTitle'] ?? 'Untitled', ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="list-item-sub">Add event date</div>
-                                </div>
-                                <div class="list-item-right">
-                                    <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($missing['eventID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">Fix</a>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                        <?php if ($missingDateCount > 3): ?>
-                            <li class="muted">And <?= (int) ($missingDateCount - 3) ?> more record(s).</li>
-                        <?php endif; ?>
-                    </ul>
-                <?php endif; ?>
             </div>
         </div>
     </div>

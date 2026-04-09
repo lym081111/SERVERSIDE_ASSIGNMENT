@@ -452,6 +452,80 @@
             margin: 0 auto;
         }
 
+        .module-page .content-inner {
+            max-width: 1460px;
+        }
+
+        .module-page .kpi-grid {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .module-page .kpi-card {
+            padding: 20px 22px;
+            min-height: 132px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .module-page .kpi-label {
+            font-size: 0.96rem;
+        }
+
+        .module-page .kpi-value {
+            margin-top: 10px;
+            font-size: 2rem;
+            line-height: 1.2;
+        }
+
+        .module-page .kpi-sub {
+            margin-top: 8px;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+
+        .module-page .split-layout {
+            grid-template-columns: minmax(0, 1fr) 340px;
+            gap: 20px;
+        }
+
+        .module-page .co-records-table th,
+        .module-page .co-records-table td {
+            padding: 14px 16px;
+            font-size: 0.98rem;
+            line-height: 1.45;
+        }
+
+        .module-page .admin-kpi-grid {
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 18px;
+            margin-bottom: 22px;
+        }
+
+        .module-page .admin-kpi-card {
+            padding: 20px 22px;
+            min-height: 132px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .module-page .admin-kpi-label {
+            font-size: 0.92rem;
+        }
+
+        .module-page .admin-kpi-value {
+            font-size: 1.9rem;
+            line-height: 1.2;
+        }
+
+        .module-page .admin-kpi-sub {
+            font-size: 0.98rem;
+            line-height: 1.4;
+        }
+
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1086,9 +1160,19 @@
 
         .filter-bar {
             display: grid;
-            grid-template-columns: 1.2fr 220px auto auto;
+            grid-template-columns: minmax(220px, 1.2fr) 220px 180px auto auto;
             gap: 10px;
             align-items: center;
+        }
+
+        .review-form {
+            display: grid;
+            grid-template-columns: minmax(140px, 1fr);
+            gap: 8px;
+        }
+
+        .review-form .btn {
+            padding: 8px 10px;
         }
 
         .form-grid {
@@ -1146,6 +1230,10 @@
                 grid-template-columns: 1fr;
             }
 
+            .module-page .split-layout {
+                grid-template-columns: 1fr;
+            }
+
             .admin-hero {
                 flex-direction: column;
                 align-items: flex-start;
@@ -1197,6 +1285,24 @@
             border-color: rgba(154, 52, 18, 0.35);
         }
 
+        .status-badge.pending {
+            background: #e2e8f0;
+            color: #475569;
+            border-color: rgba(100, 116, 139, 0.35);
+        }
+
+        .status-badge.approved {
+            background: #dcfce7;
+            color: #166534;
+            border-color: rgba(22, 101, 52, 0.35);
+        }
+
+        .status-badge.rejected {
+            background: #fee2e2;
+            color: #991b1b;
+            border-color: rgba(153, 27, 27, 0.35);
+        }
+
         .print-title {
             display: none;
             font-size: 20px;
@@ -1240,9 +1346,17 @@
                 border: none !important;
             }
 
-            .admin-table th:last-child,
-            .admin-table td:last-child {
+            .co-records-table th:last-child,
+            .co-records-table td:last-child {
                 display: none;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .review-form {
+                display: none !important;
             }
         }
 

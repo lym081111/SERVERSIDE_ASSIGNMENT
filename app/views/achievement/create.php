@@ -39,7 +39,7 @@
 
     <div class="card">
 
-        <form method="POST" class="form">
+        <form method="POST" enctype="multipart/form-data" class="form">
             <?php csrf_field(); ?>
 
             <div class="form-grid">
@@ -54,8 +54,18 @@
                 </div>
 
                 <div>
+                    <label class="label">Achievement Level</label>
+                    <select class="input" name="achievementLevel">
+                        <option value="Faculty">Faculty</option>
+                        <option value="University">University</option>
+                        <option value="National">National</option>
+                        <option value="International">International</option>
+                    </select>
+                </div>
+
+                <div>
                     <label class="label">Date Received</label>
-                    <input class="input" type="date" name="dateReceived">
+                    <input class="input" type="date" name="dateReceived" required>
                 </div>
             </div>
 
@@ -65,6 +75,11 @@
             </div>
 
             <div class="form-actions">
+                <div style="width:100%;">
+                    <label class="label">Proof Document (Optional)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
+                    <div class="muted" style="margin-top:6px;">Accepted: PDF, JPG, PNG (max 5MB).</div>
+                </div>
                 <button type="submit" class="btn">Save Record</button>
                 <a href="index.php?url=achievement/index" class="btn btn-secondary">Cancel</a>
             </div>

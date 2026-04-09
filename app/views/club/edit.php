@@ -38,7 +38,7 @@
     <?php endif; ?>
 
     <div class="card">
-        <form method="POST" class="form">
+        <form method="POST" enctype="multipart/form-data" class="form">
             <?php csrf_field(); ?>
 
             <div class="form-grid">
@@ -54,12 +54,13 @@
 
                 <div>
                     <label class="label">Start Date</label>
-                    <input class="input" type="date" name="startDate" value="<?= htmlspecialchars($club['startDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                    <input class="input" type="date" name="startDate" value="<?= htmlspecialchars($club['startDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
 
                 <div>
                     <label class="label">End Date</label>
                     <input class="input" type="date" name="endDate" value="<?= htmlspecialchars($club['endDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                    <div class="muted" style="margin-top:6px;">Leave blank if membership is still active.</div>
                 </div>
             </div>
 
@@ -69,6 +70,18 @@
             </div>
 
             <div class="form-actions">
+                <div style="width:100%;">
+                    <label class="label">Proof Document (Optional)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
+                    <?php if (!empty($club['evidence_path'])): ?>
+                        <div class="muted" style="margin-top:6px;">
+                            Current file:
+                            <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim((string) $club['evidence_path'], '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View evidence</a>
+                        </div>
+                    <?php else: ?>
+                        <div class="muted" style="margin-top:6px;">No file uploaded yet. Accepted: PDF, JPG, PNG (max 5MB).</div>
+                    <?php endif; ?>
+                </div>
                 <button type="submit" class="btn">Save Changes</button>
                 <a href="index.php?url=club/index" class="btn btn-secondary">Cancel</a>
             </div>

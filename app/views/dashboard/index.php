@@ -7,6 +7,14 @@
     $eventCountValue = isset($eventCount) ? (int) $eventCount : 0;
     $clubCountValue = isset($clubCount) ? (int) $clubCount : 0;
     $achievementCountValue = isset($achievementCount) ? (int) $achievementCount : 0;
+    $pendingMeritCountValue = isset($pendingMeritCount) ? (int) $pendingMeritCount : 0;
+    $pendingEventCountValue = isset($pendingEventCount) ? (int) $pendingEventCount : 0;
+    $pendingClubCountValue = isset($pendingClubCount) ? (int) $pendingClubCount : 0;
+    $pendingAchievementCountValue = isset($pendingAchievementCount) ? (int) $pendingAchievementCount : 0;
+    $approvedMeritHoursValue = isset($approvedMeritHours) ? (int) $approvedMeritHours : 0;
+    $meritCertificateCountValue = isset($meritCertificateCount) ? (int) $meritCertificateCount : 0;
+    $nextMeritCertificateMilestoneValue = isset($nextMeritCertificateMilestone) ? (int) $nextMeritCertificateMilestone : 100;
+    $hoursToNextCertificateValue = isset($hoursToNextCertificate) ? (int) $hoursToNextCertificate : max(0, $nextMeritCertificateMilestoneValue - $approvedMeritHoursValue);
 
     $latestMeritDateValue = $latestMeritDate ?? null;
     $latestEventDateValue = $latestEventDate ?? null;
@@ -30,8 +38,15 @@
     <div class="content">
         <div class="content-inner">
 
-        <h1 class="page-title">Co-curricular Dashboard</h1>
-        <p class="page-subtitle">Overview your live modules and jump straight into each tracker.</p>
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">Co-curricular Dashboard</h1>
+                <p class="page-subtitle">Overview your live modules and jump straight into each tracker.</p>
+            </div>
+            <div class="page-actions">
+                <a class="btn btn-secondary" href="index.php?url=dashboard/transcript">Print Official Transcript</a>
+            </div>
+        </div>
 
         <div class="kpi-grid">
             <div class="kpi-card">
@@ -57,6 +72,12 @@
                 <div class="kpi-value"><?= (int) $achievementCountValue ?></div>
                 <div class="kpi-sub">Awards and recognition</div>
             </div>
+
+            <div class="kpi-card">
+                <div class="kpi-label">Merit Certificates</div>
+                <div class="kpi-value"><?= (int) $meritCertificateCountValue ?></div>
+                <div class="kpi-sub"><?= (int) $hoursToNextCertificateValue ?>h to <?= (int) $nextMeritCertificateMilestoneValue ?>h</div>
+            </div>
         </div>
 
         <div class="module-grid">
@@ -76,10 +97,16 @@
                     Log and monitor your co-curricular merit hours across activities.
                     <div class="module-meta">
                         <div class="module-meta-row">Total Hours: <strong><?= (int) round($meritHoursValue) ?></strong></div>
+                        <div class="module-meta-row">Approved Hours: <strong><?= (int) $approvedMeritHoursValue ?></strong></div>
                         <div class="module-meta-row">Latest Activity: <strong><?= htmlspecialchars($latestMeritDateValue ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
+                        <div class="module-meta-row">Pending Review: <strong><?= (int) $pendingMeritCountValue ?></strong></div>
+                        <div class="module-meta-row">Certificates: <strong><?= (int) $meritCertificateCountValue ?></strong></div>
                     </div>
                 </div>
                 <a href="index.php?url=merit/index" class="btn btn-pill">Access Module</a>
+                <div style="margin-top:10px;">
+                    <a class="link" href="index.php?url=certificate/myMerit">View Merit Certificates</a>
+                </div>
             </div>
 
             <div class="module-card event">
@@ -98,6 +125,7 @@
                     <div class="module-meta">
                         <div class="module-meta-row">Total Events: <strong><?= (int) $eventCountValue ?></strong></div>
                         <div class="module-meta-row">Latest Event: <strong><?= htmlspecialchars($latestEventDateValue ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
+                        <div class="module-meta-row">Pending Review: <strong><?= (int) $pendingEventCountValue ?></strong></div>
                     </div>
                 </div>
                 <a href="index.php?url=event/index" class="btn btn-pill">Access Module</a>
@@ -119,6 +147,7 @@
                     <div class="module-meta">
                         <div class="module-meta-row">Total Clubs: <strong><?= (int) $clubCountValue ?></strong></div>
                         <div class="module-meta-row">Active Memberships: <strong><?= (int) $activeClubCountValue ?></strong></div>
+                        <div class="module-meta-row">Pending Review: <strong><?= (int) $pendingClubCountValue ?></strong></div>
                     </div>
                 </div>
                 <a href="index.php?url=club/index" class="btn btn-pill">Access Module</a>
@@ -140,6 +169,7 @@
                     <div class="module-meta">
                         <div class="module-meta-row">Total Awards: <strong><?= (int) $achievementCountValue ?></strong></div>
                         <div class="module-meta-row">Latest Award: <strong><?= htmlspecialchars($latestAchievementDateValue ?? '-', ENT_QUOTES, 'UTF-8') ?></strong></div>
+                        <div class="module-meta-row">Pending Review: <strong><?= (int) $pendingAchievementCountValue ?></strong></div>
                     </div>
                 </div>
                 <a href="index.php?url=achievement/index" class="btn btn-pill">Access Module</a>

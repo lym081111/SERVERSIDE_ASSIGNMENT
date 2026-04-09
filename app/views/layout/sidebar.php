@@ -2,6 +2,7 @@
     $currentUrl = $_GET['url'] ?? 'dashboard/index';
     $isDashboardHome = strpos($currentUrl, 'dashboard') === 0;
     $userName = trim((string) ($_SESSION['user_name'] ?? 'Student'));
+    $studentId = trim((string) ($_SESSION['student_id'] ?? ''));
     $isAdmin = !empty($_SESSION['isAdmin']);
     $nameParts = preg_split('/\s+/', $userName) ?: [];
     $userInitials = '';
@@ -45,7 +46,12 @@
                 <div class="sidebar-avatar"><?= htmlspecialchars($userInitials, ENT_QUOTES, 'UTF-8') ?></div>
                 <div class="sidebar-profile-copy">
                     <div class="sidebar-profile-name"><?= htmlspecialchars($userName, ENT_QUOTES, 'UTF-8') ?></div>
-                    <div class="sidebar-profile-meta">Student Portal</div>
+                    <div class="sidebar-profile-meta">
+                        Student Portal
+                        <?php if (!$isAdmin && $studentId !== ''): ?>
+                            · ID: <?= htmlspecialchars($studentId, ENT_QUOTES, 'UTF-8') ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
                 <span class="sidebar-pill sidebar-pill-strong">All modules live</span>
             </div>
@@ -89,6 +95,7 @@
                     <a class="sidebar-link" href="index.php?url=event/create">Add Event Record</a>
                     <a class="sidebar-link" href="index.php?url=club/create">Add Club Record</a>
                     <a class="sidebar-link" href="index.php?url=achievement/create">Add Achievement</a>
+                    <a class="sidebar-link" href="index.php?url=certificate/myMerit">My Certificates</a>
                     <?php if ($isAdmin): ?>
                         <a class="sidebar-link" href="index.php?url=admin/index">Admin Overview</a>
                     <?php endif; ?>
@@ -146,6 +153,10 @@
                 <a href="index.php?url=achievement/index"
                    class="nav-link <?= strpos($currentUrl, 'achievement') === 0 ? 'active' : '' ?>">
                     <span>Achievements</span>
+                </a>
+                <a href="index.php?url=certificate/myMerit"
+                   class="nav-link <?= strpos($currentUrl, 'certificate') === 0 ? 'active' : '' ?>">
+                    <span>Certificates</span>
                 </a>
             <?php endif; ?>
         </div>

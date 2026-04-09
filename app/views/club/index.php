@@ -1,7 +1,7 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar">
         <div class="topbar-left">
@@ -26,10 +26,15 @@
         $latestStartDate = null;
         $activeCount = 0;
         $roles = [];
-        $withDatesCount = 0;
-        $missingDateCount = 0;
         $recentCount = 0;
-        $missingDateRecords = [];
+        $approvedCount = 0;
+        $pendingCount = 0;
+        $rejectedCount = 0;
+        $leadershipScore = 0;
+        $leadershipMonths = 0;
+        $highestRole = null;
+        $highestRoleWeight = 0;
+        $journeyEntries = [];
         $recentThreshold = date('Y-m-d', strtotime('-30 days'));
 
         if (is_array($clubs)) {
@@ -37,16 +42,12 @@
                 $startDate = trim((string) ($row['startDate'] ?? ''));
                 $startDate = ($startDate === '' || $startDate === '0000-00-00') ? '' : $startDate;
                 if ($startDate !== '') {
-                    $withDatesCount++;
                     if ($latestStartDate === null || strcmp((string) $startDate, (string) $latestStartDate) > 0) {
                         $latestStartDate = (string) $startDate;
                     }
                     if ((string) $startDate >= $recentThreshold) {
                         $recentCount++;
                     }
-                } else {
-                    $missingDateCount++;
-                    $missingDateRecords[] = $row;
                 }
 
                 $endDate = trim((string) ($row['endDate'] ?? ''));
@@ -59,10 +60,60 @@
                 if ($role !== '') {
                     $roles[$role] = true;
                 }
+
+                $roleLower = strtolower($role);
+                $roleWeight = 1;
+                if (strpos($roleLower, 'president') !== false || strpos($roleLower, 'chair') !== false) {
+                    $roleWeight = 5;
+                } elseif (strpos($roleLower, 'vice') !== false || strpos($roleLower, 'captain') !== false) {
+                    $roleWeight = 4;
+                } elseif (strpos($roleLower, 'secretary') !== false || strpos($roleLower, 'treasurer') !== false || strpos($roleLower, 'committee') !== false) {
+                    $roleWeight = 3;
+                } elseif (strpos($roleLower, 'leader') !== false || strpos($roleLower, 'head') !== false) {
+                    $roleWeight = 4;
+                } elseif (strpos($roleLower, 'member') !== false) {
+                    $roleWeight = 2;
+                }
+
+                if ($roleWeight > $highestRoleWeight && $role !== '') {
+                    $highestRoleWeight = $roleWeight;
+                    $highestRole = $role;
+                }
+
+                if ($startDate !== '') {
+                    $startTs = strtotime($startDate);
+                    $endTs = $endDate !== '' ? strtotime($endDate) : strtotime(date('Y-m-d'));
+                    if ($startTs !== false && $endTs !== false && $endTs >= $startTs) {
+                        $days = (int) floor(($endTs - $startTs) / 86400);
+                        $months = max(1, (int) floor($days / 30) + 1);
+                        $leadershipMonths += $months;
+                        $leadershipScore += $months * $roleWeight;
+                        $journeyEntries[] = [
+                            'clubName' => (string) ($row['clubName'] ?? 'Club'),
+                            'role' => $role !== '' ? $role : 'Member',
+                            'startDate' => $startDate,
+                            'endDate' => $endDate,
+                            'months' => $months,
+                        ];
+                    }
+                }
+
+                $statusValue = (string) ($row['status'] ?? 'pending');
+                if ($statusValue === 'approved') {
+                    $approvedCount++;
+                } elseif ($statusValue === 'rejected') {
+                    $rejectedCount++;
+                } else {
+                    $pendingCount++;
+                }
             }
         }
 
         $roleCount = count($roles);
+        usort($journeyEntries, function ($a, $b) {
+            return strcmp((string) ($b['startDate'] ?? ''), (string) ($a['startDate'] ?? ''));
+        });
+        $recentJourney = array_slice($journeyEntries, 0, 4);
 
         $milestones = [3, 5, 10, 20];
         $nextMilestone = null;
@@ -100,6 +151,12 @@
             <div class="kpi-value"><?= (int) $roleCount ?></div>
             <div class="kpi-sub">Unique roles</div>
         </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">Leadership Score</div>
+            <div class="kpi-value"><?= (int) $leadershipScore ?></div>
+            <div class="kpi-sub"><?= (int) $leadershipMonths ?> month(s) contribution</div>
+        </div>
     </div>
 
     <div class="page-header">
@@ -109,12 +166,19 @@
         </div>
         <div class="page-actions">
             <a href="index.php?url=club/create" class="btn">+ Add Club</a>
+            <a href="index.php?url=club/exportSelf" class="btn btn-secondary no-print">Export my CSV</a>
         </div>
     </div>
 
     <?php if(isset($_SESSION['success'])): ?>
         <div class="success">
             <?= htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_SESSION['error'])): ?>
+        <div class="error">
+            <?= htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
         </div>
     <?php endif; ?>
 
@@ -128,7 +192,7 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search club name..."
+                        placeholder="Search club name, role, or role description..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'clubID'; ?>
@@ -138,6 +202,15 @@
                         <option value="role" <?= $currentSort === 'role' ? 'selected' : '' ?>>Role</option>
                         <option value="startDate" <?= $currentSort === 'startDate' ? 'selected' : '' ?>>Start Date</option>
                         <option value="endDate" <?= $currentSort === 'endDate' ? 'selected' : '' ?>>End Date</option>
+                        <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
+                    </select>
+
+                    <?php $currentStatus = $_GET['status'] ?? ''; ?>
+                    <select name="status" class="input">
+                        <option value="" <?= $currentStatus === '' ? 'selected' : '' ?>>All Status</option>
+                        <option value="pending" <?= $currentStatus === 'pending' ? 'selected' : '' ?>>Pending</option>
+                        <option value="approved" <?= $currentStatus === 'approved' ? 'selected' : '' ?>>Approved</option>
+                        <option value="rejected" <?= $currentStatus === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                     </select>
 
                     <button class="btn" type="submit">Search / Filter</button>
@@ -145,19 +218,20 @@
                 </form>
             </div>
 
-            <table>
+            <table class="co-records-table">
                 <tr>
                     <th>Club Name</th>
                     <th>Role</th>
                     <th>Role Description</th>
                     <th>Start Date</th>
                     <th>End Date</th>
+                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
 
                 <?php if (empty($clubs)): ?>
                     <tr>
-                        <td colspan="6" class="muted">No club records found.</td>
+                        <td colspan="7" class="muted">No club records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -165,33 +239,46 @@
                 <?php
                     $startDateDisplay = trim((string) ($c['startDate'] ?? ''));
                     $startDateDisplay = ($startDateDisplay === '' || $startDateDisplay === '0000-00-00') ? '' : $startDateDisplay;
-                    $startDateMissing = $startDateDisplay === '';
                     $endDateDisplay = trim((string) ($c['endDate'] ?? ''));
                     $endDateDisplay = ($endDateDisplay === '' || $endDateDisplay === '0000-00-00') ? '-' : $endDateDisplay;
+                    $status = (string) ($c['status'] ?? 'approved');
+                    $reviewNote = trim((string) ($c['review_note'] ?? ''));
+                    $evidencePath = trim((string) ($c['evidence_path'] ?? ''));
+                    $isLocked = $status === 'approved';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars($c['clubName'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($c['role'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($c['roleDescription'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td>
-                        <?php if ($startDateMissing): ?>
-                            <span class="status-badge warn">Date missing</span>
-                            <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
-                        <?php else: ?>
-                            <?= htmlspecialchars($startDateDisplay, ENT_QUOTES, 'UTF-8') ?>
-                        <?php endif; ?>
-                    </td>
+                    <td><?= htmlspecialchars($startDateDisplay !== '' ? $startDateDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($endDateDisplay, ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
-                        <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
-                        <span class="muted">|</span>
-                        <form method="POST" action="index.php?url=club/delete" style="display:inline;">
-                            <?php csrf_field(); ?>
-                            <input type="hidden" name="id" value="<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">
-                            <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
-                                Delete
-                            </button>
-                        </form>
+                        <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if ($reviewNote !== ''): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                Note: <?= htmlspecialchars($reviewNote, ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($evidencePath !== ''): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View proof</a>
+                            </div>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($isLocked): ?>
+                            <span class="muted">Locked after approval (admin only)</span>
+                        <?php else: ?>
+                            <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <span class="muted">|</span>
+                            <form method="POST" action="index.php?url=club/delete" style="display:inline;">
+                                <?php csrf_field(); ?>
+                                <input type="hidden" name="id" value="<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
+                                    Delete
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -215,26 +302,62 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Data Quality</h3>
-                    <span class="chip">Checks</span>
+                    <h3 class="card-title">Leadership Journey</h3>
+                    <span class="chip">Role progression</span>
+                </div>
+                <div class="muted" style="margin-bottom:10px;">
+                    Highest role: <strong><?= htmlspecialchars($highestRole ?? 'Member', ENT_QUOTES, 'UTF-8') ?></strong>
+                </div>
+                <?php if (empty($recentJourney)): ?>
+                    <div class="muted">No leadership timeline data available yet.</div>
+                <?php else: ?>
+                    <ul class="list">
+                        <?php foreach ($recentJourney as $journey): ?>
+                            <li class="list-item">
+                                <div>
+                                    <div class="list-item-title"><?= htmlspecialchars(($journey['clubName'] ?? 'Club') . ' · ' . ($journey['role'] ?? 'Member'), ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="list-item-sub">
+                                        <?= htmlspecialchars(($journey['startDate'] ?? '-') . ' to ' . (($journey['endDate'] ?? '') !== '' ? $journey['endDate'] : 'Present'), ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                </div>
+                                <div class="list-item-right"><?= (int) ($journey['months'] ?? 0) ?> mo</div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Review Overview</h3>
+                    <span class="chip">Status</span>
                 </div>
                 <ul class="list">
                     <li class="list-item">
                         <div>
-                            <div class="list-item-title">Records with start dates</div>
-                            <div class="list-item-sub">Date coverage</div>
+                            <div class="list-item-title">Approved</div>
+                            <div class="list-item-sub">Locked and verified</div>
                         </div>
                         <div class="list-item-right">
-                            <strong><?= (int) $withDatesCount ?></strong> / <?= (int) $totalRecords ?>
+                            <strong><?= (int) $approvedCount ?></strong>
                         </div>
                     </li>
                     <li class="list-item">
                         <div>
-                            <div class="list-item-title">Missing start dates</div>
-                            <div class="list-item-sub">Fix missing dates</div>
+                            <div class="list-item-title">Pending</div>
+                            <div class="list-item-sub">Waiting for admin review</div>
                         </div>
                         <div class="list-item-right">
-                            <?= (int) $missingDateCount ?>
+                            <?= (int) $pendingCount ?>
+                        </div>
+                    </li>
+                    <li class="list-item">
+                        <div>
+                            <div class="list-item-title">Rejected</div>
+                            <div class="list-item-sub">Need edits before resubmission</div>
+                        </div>
+                        <div class="list-item-right">
+                            <?= (int) $rejectedCount ?>
                         </div>
                     </li>
                     <li class="list-item">
@@ -247,25 +370,6 @@
                         </div>
                     </li>
                 </ul>
-                <?php if ($missingDateCount > 0): ?>
-                    <div class="muted" style="margin-top:10px;">Records needing update:</div>
-                    <ul class="list" style="margin-top:8px;">
-                        <?php foreach (array_slice($missingDateRecords, 0, 3) as $missing): ?>
-                            <li class="list-item">
-                                <div>
-                                    <div class="list-item-title"><?= htmlspecialchars($missing['clubName'] ?? 'Untitled', ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="list-item-sub">Add start date</div>
-                                </div>
-                                <div class="list-item-right">
-                                    <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($missing['clubID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">Fix</a>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                        <?php if ($missingDateCount > 3): ?>
-                            <li class="muted">And <?= (int) ($missingDateCount - 3) ?> more record(s).</li>
-                        <?php endif; ?>
-                    </ul>
-                <?php endif; ?>
             </div>
         </div>
     </div>

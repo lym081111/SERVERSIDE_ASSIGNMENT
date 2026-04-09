@@ -1,7 +1,7 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar admin-topbar">
         <div class="topbar-left">
@@ -30,6 +30,9 @@
         if (!empty($_GET['sort'])) {
             $exportParams['sort'] = (string) $_GET['sort'];
         }
+        if (!empty($_GET['status'])) {
+            $exportParams['status'] = (string) $_GET['status'];
+        }
         $exportUrl = 'index.php?' . http_build_query($exportParams);
     ?>
 
@@ -43,11 +46,23 @@
         </div>
         <div class="admin-hero-actions">
             <a class="btn" href="index.php?url=event/create">Add Event for Student</a>
-            <a class="btn btn-secondary" href="<?= htmlspecialchars($exportUrl, ENT_QUOTES, 'UTF-8') ?>">Export CSV</a>
+            <a class="btn btn-secondary no-print" href="<?= htmlspecialchars($exportUrl, ENT_QUOTES, 'UTF-8') ?>">Export CSV</a>
             <button class="btn btn-secondary" type="button" onclick="window.print()">Print</button>
             <a class="btn btn-secondary" href="index.php?url=event/index">Refresh</a>
         </div>
     </div>
+
+    <?php if(isset($_SESSION['success'])): ?>
+        <div class="success">
+            <?= htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_SESSION['error'])): ?>
+        <div class="error">
+            <?= htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
+        </div>
+    <?php endif; ?>
 
     <div class="admin-section">
         <div class="admin-section-header">
@@ -62,16 +77,27 @@
                     type="text"
                     name="search"
                     class="input"
-                    placeholder="Search student name, email, or event title..."
+                    placeholder="Search student, ID, email, title, type, location, reflection, or date..."
                     value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                 <?php $currentSort = $_GET['sort'] ?? 'eventID'; ?>
                 <select name="sort" class="input">
                     <option value="eventID" <?= $currentSort === 'eventID' ? 'selected' : '' ?>>Newest</option>
                     <option value="student" <?= $currentSort === 'student' ? 'selected' : '' ?>>Student Name</option>
+                    <option value="student_id" <?= $currentSort === 'student_id' ? 'selected' : '' ?>>Student ID</option>
                     <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event Title</option>
+                    <option value="eventType" <?= $currentSort === 'eventType' ? 'selected' : '' ?>>Event Type</option>
                     <option value="eventDate" <?= $currentSort === 'eventDate' ? 'selected' : '' ?>>Event Date</option>
                     <option value="location" <?= $currentSort === 'location' ? 'selected' : '' ?>>Location</option>
+                    <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
+                </select>
+
+                <?php $currentStatus = $_GET['status'] ?? ''; ?>
+                <select name="status" class="input">
+                    <option value="" <?= $currentStatus === '' ? 'selected' : '' ?>>All Status</option>
+                    <option value="pending" <?= $currentStatus === 'pending' ? 'selected' : '' ?>>Pending</option>
+                    <option value="approved" <?= $currentStatus === 'approved' ? 'selected' : '' ?>>Approved</option>
+                    <option value="rejected" <?= $currentStatus === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                 </select>
 
                 <button class="btn" type="submit">Search / Filter</button>
@@ -86,29 +112,71 @@
             <span class="admin-section-chip"><?= is_array($events) ? count($events) : 0 ?> total</span>
         </div>
         <div class="admin-section-body">
-            <table class="admin-table">
+            <table class="admin-table co-records-table">
                 <tr>
                     <th>Student</th>
+                    <th>Student ID</th>
                     <th>Email</th>
                     <th>Event</th>
+                    <th>Type</th>
                     <th>Date</th>
                     <th>Location</th>
                     <th>Description</th>
+                    <th>Reflection</th>
+                    <th>Proof</th>
+                    <th>Status</th>
+                    <th>Review</th>
                     <th>Actions</th>
                 </tr>
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="7" class="muted">No event records found.</td>
+                        <td colspan="13" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($events as $e): ?>
+                    <?php
+                        $status = (string) ($e['status'] ?? 'approved');
+                        $reviewNote = trim((string) ($e['review_note'] ?? ''));
+                        $evidencePath = trim((string) ($e['evidence_path'] ?? ''));
+                    ?>
                     <tr>
                         <td><?= htmlspecialchars($e['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($e['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['userEmail'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['eventTitle'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars(($e['eventType'] ?? 'General') ?: 'General', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['eventDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars($e['reflection'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <?php if ($evidencePath !== ''): ?>
+                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open file</a>
+                            <?php else: ?>
+                                <span class="muted">No file</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
+                        </td>
+                        <td>
+                            <form method="POST" action="index.php?url=event/review" class="review-form">
+                                <?php csrf_field(); ?>
+                                <input type="hidden" name="id" value="<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <select name="status" class="input">
+                                    <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
+                                    <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?>>Approved</option>
+                                    <option value="rejected" <?= $status === 'rejected' ? 'selected' : '' ?>>Rejected</option>
+                                </select>
+                                <input
+                                    type="text"
+                                    name="review_note"
+                                    class="input"
+                                    placeholder="Review note (optional)"
+                                    value="<?= htmlspecialchars($reviewNote, ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="submit" class="btn btn-secondary">Save</button>
+                            </form>
+                        </td>
                         <td>
                             <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
                             <span class="muted">|</span>
@@ -132,3 +200,4 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
+

@@ -4,16 +4,18 @@
 <?php
     $studentName = '-';
     $studentEmail = '-';
+    $studentId = '-';
     foreach ($students as $s) {
         if ((int) ($s['userID'] ?? 0) === (int) ($achievement['userID'] ?? 0)) {
             $studentName = $s['name'] ?? '-';
             $studentEmail = $s['email'] ?? '-';
+            $studentId = $s['student_id'] ?? '-';
             break;
         }
     }
 ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar admin-topbar">
         <div class="topbar-left">
@@ -63,6 +65,10 @@
                     <input class="input" type="text" value="<?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8') ?>" disabled>
                 </div>
                 <div>
+                    <label class="label">Student ID</label>
+                    <input class="input" type="text" value="<?= htmlspecialchars($studentId, ENT_QUOTES, 'UTF-8') ?>" disabled>
+                </div>
+                <div>
                     <label class="label">Student Email</label>
                     <input class="input" type="text" value="<?= htmlspecialchars($studentEmail, ENT_QUOTES, 'UTF-8') ?>" disabled>
                 </div>
@@ -91,14 +97,41 @@
                     </div>
 
                     <div>
+                        <label class="label">Achievement Level</label>
+                        <?php $achievementLevelValue = (string) ($achievement['achievementLevel'] ?? 'Faculty'); ?>
+                        <select class="input" name="achievementLevel">
+                            <option value="Faculty" <?= $achievementLevelValue === 'Faculty' ? 'selected' : '' ?>>Faculty</option>
+                            <option value="University" <?= $achievementLevelValue === 'University' ? 'selected' : '' ?>>University</option>
+                            <option value="National" <?= $achievementLevelValue === 'National' ? 'selected' : '' ?>>National</option>
+                            <option value="International" <?= $achievementLevelValue === 'International' ? 'selected' : '' ?>>International</option>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="label">Date Received</label>
-                        <input class="input" type="date" name="dateReceived" value="<?= htmlspecialchars($achievement['dateReceived'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <input class="input" type="date" name="dateReceived" value="<?= htmlspecialchars($achievement['dateReceived'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
                 </div>
 
                 <div style="margin-top:14px;">
                     <label class="label">Description</label>
                     <textarea class="input" name="description" rows="4"><?= htmlspecialchars($achievement['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                </div>
+
+                <div class="form-grid" style="margin-top:14px;">
+                    <div>
+                        <label class="label">Status</label>
+                        <?php $statusValue = (string) ($achievement['status'] ?? 'pending'); ?>
+                        <select name="status" class="input">
+                            <option value="pending" <?= $statusValue === 'pending' ? 'selected' : '' ?>>Pending</option>
+                            <option value="approved" <?= $statusValue === 'approved' ? 'selected' : '' ?>>Approved</option>
+                            <option value="rejected" <?= $statusValue === 'rejected' ? 'selected' : '' ?>>Rejected</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Review Note</label>
+                        <input class="input" type="text" name="review_note" value="<?= htmlspecialchars($achievement['review_note'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Optional admin note">
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -115,3 +148,4 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
+

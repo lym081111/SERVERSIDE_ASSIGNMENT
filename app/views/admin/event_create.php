@@ -1,7 +1,7 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar admin-topbar">
         <div class="topbar-left">
@@ -50,6 +50,15 @@
 
                 <div class="form-grid">
                     <div>
+                        <label class="label">Student ID (searchable)</label>
+                        <input class="input" type="text" name="studentId" list="student-ids" placeholder="Start typing student ID...">
+                        <datalist id="student-ids">
+                            <?php foreach ($students as $s): ?>
+                                <option value="<?= htmlspecialchars($s['student_id'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                            <?php endforeach; ?>
+                        </datalist>
+                    </div>
+                    <div>
                         <label class="label">Student Email (searchable)</label>
                         <input class="input" type="text" name="studentEmail" list="student-emails" placeholder="Start typing email...">
                         <datalist id="student-emails">
@@ -64,7 +73,7 @@
                             <option value="">Select student</option>
                             <?php foreach ($students as $s): ?>
                                 <option value="<?= htmlspecialchars($s['userID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                                    <?= htmlspecialchars($s['name'] ?? '', ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)
+                                    <?= htmlspecialchars($s['name'] ?? '', ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($s['student_id'] ?? '-', ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -75,6 +84,18 @@
                     <div>
                         <label class="label">Event Title</label>
                         <input class="input" type="text" name="eventTitle" placeholder="e.g. Leadership Talk" required>
+                    </div>
+
+                    <div>
+                        <label class="label">Event Type</label>
+                        <select class="input" name="eventType">
+                            <option value="Leadership">Leadership</option>
+                            <option value="Volunteerism">Volunteerism</option>
+                            <option value="Academic">Academic</option>
+                            <option value="Technical">Technical</option>
+                            <option value="Sports">Sports</option>
+                            <option value="Community">Community</option>
+                        </select>
                     </div>
 
                     <div>
@@ -93,6 +114,11 @@
                     <textarea class="input" name="description" rows="4" placeholder="Add notes or a short summary."></textarea>
                 </div>
 
+                <div style="margin-top:14px;">
+                    <label class="label">Reflection (Learning Outcome)</label>
+                    <textarea class="input" name="reflection" rows="4" placeholder="What skill or insight did the student gain?"></textarea>
+                </div>
+
                 <div class="form-actions">
                     <button type="submit" class="btn">Save Record</button>
                     <a href="index.php?url=event/index" class="btn btn-secondary">Cancel</a>
@@ -107,3 +133,4 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
+

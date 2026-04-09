@@ -20,6 +20,7 @@ class AuthController {
                 $_SESSION['user_id'] = $user['userID'];
                 $_SESSION['user_name'] = $user['name'];
                 $_SESSION['isAdmin'] = $user['isAdmin'];
+                $_SESSION['student_id'] = $user['student_id'] ?? null;
 
                 setcookie("last_login", date("Y-m-d H:i:s"), [
                     'expires'  => time() + 86400 * 30,
@@ -68,9 +69,10 @@ class AuthController {
             }
 
             $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+            $studentId = User::generateStudentId();
 
             try {
-                User::create($name, $email, $passwordHash);
+                User::create($name, $email, $passwordHash, $studentId);
             } catch (PDOException $e) {
                 $error = "Error: Name or Email might already exist.";
                 require "../app/views/auth/register.php";

@@ -21,21 +21,34 @@ class EventController {
         }
     }
 
+    private function redirectWithError($message) {
+        $_SESSION['error'] = $message;
+        header("Location: index.php?url=event/index");
+        exit();
+    }
+
+    private function normalizeEventType($value) {
+        $type = trim((string) $value);
+        $allowed = ['Leadership', 'Volunteerism', 'Academic', 'Technical', 'Sports', 'Community'];
+        return in_array($type, $allowed, true) ? $type : 'Leadership';
+    }
+
     public function index() {
 
         $this->checkLogin();
 
         $search = isset($_GET['search']) ? trim((string) $_GET['search']) : null;
         $sort = isset($_GET['sort']) ? (string) $_GET['sort'] : null;
+        $status = isset($_GET['status']) ? (string) $_GET['status'] : null;
 
         if ($this->isAdmin()) {
-            $events = Event::getAllWithUser($search, $sort);
+            $events = Event::getAllWithUser($search, $sort, $status);
             require "../app/views/admin/event_index.php";
             return;
         }
 
         $userID = $_SESSION['user_id'];
-        $events = Event::getByUser($userID, $search, $sort);
+        $events = Event::getByUser($userID, $search, $sort, $status);
 
         require "../app/views/event/index.php";
     }
@@ -52,6 +65,8 @@ class EventController {
 
             $eventDate = trim((string) ($_POST['eventDate'] ?? ''));
             $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
+            $eventType = $this->normalizeEventType($_POST['eventType'] ?? 'Leadership');
+            $reflection = trim((string) ($_POST['reflection'] ?? ''));
 
             if (empty($_POST['eventTitle']) || $eventDate === '') {
                 $error = "Event title and date are required.";
@@ -60,8 +75,13 @@ class EventController {
                 if ($this->isAdmin()) {
                     $targetUserID = (int) ($_POST['studentID'] ?? 0);
                     $studentEmail = trim((string) ($_POST['studentEmail'] ?? ''));
+                    $studentId = trim((string) ($_POST['studentId'] ?? ''));
                     if ($targetUserID <= 0 && $studentEmail !== '') {
                         $student = User::findByEmail($studentEmail);
+                        $targetUserID = $student['userID'] ?? 0;
+                    }
+                    if ($targetUserID <= 0 && $studentId !== '') {
+                        $student = User::findByStudentId($studentId);
                         $targetUserID = $student['userID'] ?? 0;
                     }
                     if ($targetUserID <= 0) {
@@ -69,16 +89,38 @@ class EventController {
                     }
                 }
 
+                $evidencePath = null;
                 if ($error === null) {
+                    $upload = EvidenceUpload::uploadFromRequest('evidence_file');
+                    if ($upload['error'] !== null) {
+                        $error = $upload['error'];
+                    } else {
+                        $evidencePath = $upload['path'];
+                    }
+                }
+
+                if ($error === null) {
+                    $status = $this->isAdmin() ? 'approved' : 'pending';
+                    $reviewedBy = $this->isAdmin() ? (int) $_SESSION['user_id'] : null;
+                    $reviewedAt = $this->isAdmin() ? date('Y-m-d H:i:s') : null;
                     Event::create(
                         $targetUserID,
                         $_POST['eventTitle'],
+                        $eventType,
                         $eventDate,
                         $_POST['location'],
-                        $_POST['description']
+                        $_POST['description'],
+                        $reflection === '' ? null : $reflection,
+                        $status,
+                        $reviewedBy,
+                        null,
+                        $reviewedAt,
+                        $evidencePath
                     );
 
-                    $_SESSION['success'] = "Event record added successfully.";
+                    $_SESSION['success'] = $this->isAdmin()
+                        ? "Event record added and approved."
+                        : "Event record submitted for review.";
                     header("Location: index.php?url=event/index");
                     exit();
                 }
@@ -106,6 +148,23 @@ class EventController {
         }
 
         $error = null;
+        $userID = (int) ($_SESSION['user_id'] ?? 0);
+
+        if ($this->isAdmin()) {
+            $event = Event::findById($id);
+            $students = User::getAll();
+            if (!$event) {
+                $this->redirectWithError("Event record not found.");
+            }
+        } else {
+            $event = Event::find($id, $userID);
+            if (!$event) {
+                $this->redirectWithError("Event record not found.");
+            }
+            if (($event['status'] ?? '') === 'approved') {
+                $this->redirectWithError("Approved event records can only be edited by admin.");
+            }
+        }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -113,6 +172,8 @@ class EventController {
 
             $eventDate = trim((string) ($_POST['eventDate'] ?? ''));
             $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
+            $eventType = $this->normalizeEventType($_POST['eventType'] ?? 'Leadership');
+            $reflection = trim((string) ($_POST['reflection'] ?? ''));
 
             if (empty($_POST['eventTitle']) || $eventDate === '') {
                 $error = "Event title and date are required.";
@@ -123,38 +184,89 @@ class EventController {
                     Event::updateById(
                         $id,
                         $_POST['eventTitle'],
+                        $eventType,
                         $eventDate,
                         $_POST['location'],
-                        $_POST['description']
+                        $_POST['description'],
+                        $reflection === '' ? null : $reflection
                     );
+                    if (isset($_POST['status'])) {
+                        $status = (string) $_POST['status'];
+                        $note = trim((string) ($_POST['review_note'] ?? ''));
+                        Event::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note);
+                    }
+                    $_SESSION['success'] = "Event record updated.";
                 } else {
-                    $userID = $_SESSION['user_id'];
-                    Event::update(
-                        $id,
-                        $userID,
-                        $_POST['eventTitle'],
-                        $eventDate,
-                        $_POST['location'],
-                        $_POST['description']
-                    );
+                    $upload = EvidenceUpload::uploadFromRequest('evidence_file');
+                    if ($upload['error'] !== null) {
+                        $error = $upload['error'];
+                    } else {
+                        Event::update(
+                            $id,
+                            $userID,
+                            $_POST['eventTitle'],
+                            $eventType,
+                            $eventDate,
+                            $_POST['location'],
+                            $_POST['description'],
+                            $reflection === '' ? null : $reflection,
+                            $upload['path'],
+                            $upload['uploaded']
+                        );
+                        $_SESSION['success'] = "Event record updated and resubmitted for review.";
+                    }
                 }
 
-                header("Location: index.php?url=event/index");
-                exit();
+                if ($error === null) {
+                    header("Location: index.php?url=event/index");
+                    exit();
+                }
             }
         }
 
         if ($this->isAdmin()) {
-            $event = Event::findById($id);
-            $students = User::getAll();
             require "../app/views/admin/event_edit.php";
             return;
         }
 
-        $userID = $_SESSION['user_id'];
-        $event = Event::find($id, $userID);
-
         require "../app/views/event/edit.php";
+    }
+
+    public function exportSelf() {
+        $this->checkLogin();
+        if ($this->isAdmin()) {
+            header("Location: index.php?url=admin/index");
+            exit();
+        }
+
+        $userID = (int) $_SESSION['user_id'];
+        $events = Event::getByUser($userID, null, null);
+
+        header('Content-Type: text/csv');
+        header('Content-Disposition: attachment; filename="my_event_records.csv"');
+
+        $output = fopen('php://output', 'w');
+        fputcsv($output, ['Event Title', 'Event Type', 'Event Date', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+
+        foreach ($events as $row) {
+            $eventDate = trim((string) ($row['eventDate'] ?? ''));
+            $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
+
+            fputcsv($output, [
+                $row['eventTitle'] ?? '',
+                $row['eventType'] ?? '',
+                $eventDate,
+                $row['location'] ?? '',
+                $row['description'] ?? '',
+                $row['reflection'] ?? '',
+                $row['status'] ?? '',
+                $row['review_note'] ?? '',
+                $row['evidence_path'] ?? '',
+            ]);
+        }
+
+        fclose($output);
+        exit();
     }
 
     public function export() {
@@ -162,14 +274,15 @@ class EventController {
 
         $search = isset($_GET['search']) ? trim((string) $_GET['search']) : null;
         $sort = isset($_GET['sort']) ? (string) $_GET['sort'] : null;
+        $status = isset($_GET['status']) ? (string) $_GET['status'] : null;
 
-        $events = Event::getAllWithUser($search, $sort);
+        $events = Event::getAllWithUser($search, $sort, $status);
 
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student Email', 'Event Title', 'Event Date', 'Location', 'Description']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Event Title', 'Event Type', 'Event Date', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
@@ -177,11 +290,17 @@ class EventController {
 
             fputcsv($output, [
                 $row['userName'] ?? '',
+                $row['studentId'] ?? '',
                 $row['userEmail'] ?? '',
                 $row['eventTitle'] ?? '',
+                $row['eventType'] ?? '',
                 $eventDate,
                 $row['location'] ?? '',
                 $row['description'] ?? '',
+                $row['reflection'] ?? '',
+                $row['status'] ?? '',
+                $row['review_note'] ?? '',
+                $row['evidence_path'] ?? '',
             ]);
         }
 
@@ -205,10 +324,42 @@ class EventController {
         if ($id) {
             if ($this->isAdmin()) {
                 Event::deleteById($id);
+                $_SESSION['success'] = "Event record deleted.";
             } else {
-                $userID = $_SESSION['user_id'];
-                Event::delete($id, $userID);
+                $userID = (int) $_SESSION['user_id'];
+                $event = Event::find($id, $userID);
+                if (!$event) {
+                    $_SESSION['error'] = "Event record not found.";
+                } elseif (($event['status'] ?? '') === 'approved') {
+                    $_SESSION['error'] = "Approved event records can only be deleted by admin.";
+                } else {
+                    Event::delete($id, $userID);
+                    $_SESSION['success'] = "Event record deleted.";
+                }
             }
+        }
+
+        header("Location: index.php?url=event/index");
+        exit();
+    }
+
+    public function review() {
+        $this->checkAdmin();
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        verify_csrf();
+
+        $id = isset($_POST['id']) ? (int) $_POST['id'] : 0;
+        $status = isset($_POST['status']) ? (string) $_POST['status'] : '';
+        $note = trim((string) ($_POST['review_note'] ?? ''));
+
+        if ($id > 0) {
+            Event::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note);
+            $_SESSION['success'] = "Event review status updated.";
         }
 
         header("Location: index.php?url=event/index");

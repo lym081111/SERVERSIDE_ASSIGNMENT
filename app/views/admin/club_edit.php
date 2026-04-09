@@ -4,16 +4,18 @@
 <?php
     $studentName = '-';
     $studentEmail = '-';
+    $studentId = '-';
     foreach ($students as $s) {
         if ((int) ($s['userID'] ?? 0) === (int) ($club['userID'] ?? 0)) {
             $studentName = $s['name'] ?? '-';
             $studentEmail = $s['email'] ?? '-';
+            $studentId = $s['student_id'] ?? '-';
             break;
         }
     }
 ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar admin-topbar">
         <div class="topbar-left">
@@ -63,6 +65,10 @@
                     <input class="input" type="text" value="<?= htmlspecialchars($studentName, ENT_QUOTES, 'UTF-8') ?>" disabled>
                 </div>
                 <div>
+                    <label class="label">Student ID</label>
+                    <input class="input" type="text" value="<?= htmlspecialchars($studentId, ENT_QUOTES, 'UTF-8') ?>" disabled>
+                </div>
+                <div>
                     <label class="label">Student Email</label>
                     <input class="input" type="text" value="<?= htmlspecialchars($studentEmail, ENT_QUOTES, 'UTF-8') ?>" disabled>
                 </div>
@@ -92,18 +98,35 @@
 
                     <div>
                         <label class="label">Start Date</label>
-                        <input class="input" type="date" name="startDate" value="<?= htmlspecialchars($club['startDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <input class="input" type="date" name="startDate" value="<?= htmlspecialchars($club['startDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
 
                     <div>
                         <label class="label">End Date</label>
                         <input class="input" type="date" name="endDate" value="<?= htmlspecialchars($club['endDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <div class="muted" style="margin-top:6px;">Leave blank if membership is still active.</div>
                     </div>
                 </div>
 
                 <div style="margin-top:14px;">
                     <label class="label">Role Description</label>
                     <textarea class="input" name="roleDescription" rows="4"><?= htmlspecialchars($club['roleDescription'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                </div>
+
+                <div class="form-grid" style="margin-top:14px;">
+                    <div>
+                        <label class="label">Status</label>
+                        <?php $statusValue = (string) ($club['status'] ?? 'pending'); ?>
+                        <select name="status" class="input">
+                            <option value="pending" <?= $statusValue === 'pending' ? 'selected' : '' ?>>Pending</option>
+                            <option value="approved" <?= $statusValue === 'approved' ? 'selected' : '' ?>>Approved</option>
+                            <option value="rejected" <?= $statusValue === 'rejected' ? 'selected' : '' ?>>Rejected</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label">Review Note</label>
+                        <input class="input" type="text" name="review_note" value="<?= htmlspecialchars($club['review_note'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Optional admin note">
+                    </div>
                 </div>
 
                 <div class="form-actions">
@@ -120,3 +143,4 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
+

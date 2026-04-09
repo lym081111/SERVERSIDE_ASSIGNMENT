@@ -1,7 +1,7 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
-<div class="main">
+<div class="main module-page">
 
     <div class="topbar">
         <div class="topbar-left">
@@ -26,9 +26,16 @@
         $latestDate = null;
         $categories = [];
         $recentCount = 0;
-        $withDatesCount = 0;
-        $missingDateCount = 0;
-        $missingDateRecords = [];
+        $approvedCount = 0;
+        $pendingCount = 0;
+        $rejectedCount = 0;
+        $levelCounts = [
+            'Faculty' => 0,
+            'University' => 0,
+            'National' => 0,
+            'International' => 0,
+        ];
+        $highlightCandidates = [];
         $threshold = date('Y-m-d', strtotime('-90 days'));
 
         if (is_array($achievements)) {
@@ -36,26 +43,66 @@
                 $dateReceived = trim((string) ($row['dateReceived'] ?? ''));
                 $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
                 if ($dateReceived !== '') {
-                    $withDatesCount++;
                     if ($latestDate === null || strcmp((string) $dateReceived, (string) $latestDate) > 0) {
                         $latestDate = (string) $dateReceived;
                     }
                     if ((string) $dateReceived >= $threshold) {
                         $recentCount++;
                     }
-                } else {
-                    $missingDateCount++;
-                    $missingDateRecords[] = $row;
                 }
 
                 $category = trim((string) ($row['category'] ?? ''));
                 if ($category !== '') {
                     $categories[$category] = true;
                 }
+
+                $level = trim((string) ($row['achievementLevel'] ?? 'Faculty'));
+                if (!isset($levelCounts[$level])) {
+                    $levelCounts[$level] = 0;
+                }
+                $levelCounts[$level]++;
+
+                $levelWeight = [
+                    'International' => 4,
+                    'National' => 3,
+                    'University' => 2,
+                    'Faculty' => 1,
+                ];
+                $highlightCandidates[] = [
+                    'title' => (string) ($row['title'] ?? 'Untitled'),
+                    'level' => $level,
+                    'category' => (string) ($row['category'] ?? ''),
+                    'dateReceived' => (string) ($row['dateReceived'] ?? ''),
+                    'status' => (string) ($row['status'] ?? 'pending'),
+                    'weight' => $levelWeight[$level] ?? 1,
+                ];
+
+                $statusValue = (string) ($row['status'] ?? 'pending');
+                if ($statusValue === 'approved') {
+                    $approvedCount++;
+                } elseif ($statusValue === 'rejected') {
+                    $rejectedCount++;
+                } else {
+                    $pendingCount++;
+                }
             }
         }
 
         $categoryCount = count($categories);
+        $highTierCount = (int) (($levelCounts['National'] ?? 0) + ($levelCounts['International'] ?? 0));
+        usort($highlightCandidates, function ($a, $b) {
+            $statusOrder = ['approved' => 3, 'pending' => 2, 'rejected' => 1];
+            $aStatus = $statusOrder[$a['status']] ?? 0;
+            $bStatus = $statusOrder[$b['status']] ?? 0;
+            if ($aStatus !== $bStatus) {
+                return $bStatus <=> $aStatus;
+            }
+            if (($a['weight'] ?? 0) !== ($b['weight'] ?? 0)) {
+                return ($b['weight'] ?? 0) <=> ($a['weight'] ?? 0);
+            }
+            return strcmp((string) ($b['dateReceived'] ?? ''), (string) ($a['dateReceived'] ?? ''));
+        });
+        $topHighlights = array_slice($highlightCandidates, 0, 3);
 
         $milestones = [3, 5, 10, 20];
         $nextMilestone = null;
@@ -93,6 +140,12 @@
             <div class="kpi-value"><?= (int) $categoryCount ?></div>
             <div class="kpi-sub">Distinct categories</div>
         </div>
+
+        <div class="kpi-card">
+            <div class="kpi-label">High-Tier Awards</div>
+            <div class="kpi-value"><?= (int) $highTierCount ?></div>
+            <div class="kpi-sub">National + International</div>
+        </div>
     </div>
 
     <div class="page-header">
@@ -102,12 +155,19 @@
         </div>
         <div class="page-actions">
             <a href="index.php?url=achievement/create" class="btn">+ Add Achievement</a>
+            <a href="index.php?url=achievement/exportSelf" class="btn btn-secondary no-print">Export my CSV</a>
         </div>
     </div>
 
     <?php if(isset($_SESSION['success'])): ?>
         <div class="success">
             <?= htmlspecialchars($_SESSION['success'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['success']); ?>
+        </div>
+    <?php endif; ?>
+
+    <?php if(isset($_SESSION['error'])): ?>
+        <div class="error">
+            <?= htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
         </div>
     <?php endif; ?>
 
@@ -121,7 +181,7 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search achievement title..."
+                        placeholder="Search title, category, level, or description..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'achievementID'; ?>
@@ -129,7 +189,17 @@
                         <option value="achievementID" <?= $currentSort === 'achievementID' ? 'selected' : '' ?>>Newest</option>
                         <option value="title" <?= $currentSort === 'title' ? 'selected' : '' ?>>Title</option>
                         <option value="category" <?= $currentSort === 'category' ? 'selected' : '' ?>>Category</option>
+                        <option value="achievementLevel" <?= $currentSort === 'achievementLevel' ? 'selected' : '' ?>>Level</option>
                         <option value="dateReceived" <?= $currentSort === 'dateReceived' ? 'selected' : '' ?>>Date Received</option>
+                        <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
+                    </select>
+
+                    <?php $currentStatus = $_GET['status'] ?? ''; ?>
+                    <select name="status" class="input">
+                        <option value="" <?= $currentStatus === '' ? 'selected' : '' ?>>All Status</option>
+                        <option value="pending" <?= $currentStatus === 'pending' ? 'selected' : '' ?>>Pending</option>
+                        <option value="approved" <?= $currentStatus === 'approved' ? 'selected' : '' ?>>Approved</option>
+                        <option value="rejected" <?= $currentStatus === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                     </select>
 
                     <button class="btn" type="submit">Search / Filter</button>
@@ -137,18 +207,20 @@
                 </form>
             </div>
 
-            <table>
+            <table class="co-records-table">
                 <tr>
                     <th>Title</th>
                     <th>Category</th>
+                    <th>Level</th>
                     <th>Date Received</th>
                     <th>Description</th>
+                    <th>Status</th>
                     <th>Actions</th>
                 </tr>
 
                 <?php if (empty($achievements)): ?>
                     <tr>
-                        <td colspan="5" class="muted">No achievement records found.</td>
+                        <td colspan="7" class="muted">No achievement records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -156,30 +228,44 @@
                 <?php
                     $dateReceivedDisplay = trim((string) ($a['dateReceived'] ?? ''));
                     $dateReceivedDisplay = ($dateReceivedDisplay === '' || $dateReceivedDisplay === '0000-00-00') ? '' : $dateReceivedDisplay;
-                    $dateReceivedMissing = $dateReceivedDisplay === '';
+                    $status = (string) ($a['status'] ?? 'approved');
+                    $reviewNote = trim((string) ($a['review_note'] ?? ''));
+                    $evidencePath = trim((string) ($a['evidence_path'] ?? ''));
+                    $isLocked = $status === 'approved';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars($a['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($a['category'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td>
-                        <?php if ($dateReceivedMissing): ?>
-                            <span class="status-badge warn">Date missing</span>
-                            <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Fix</a>
-                        <?php else: ?>
-                            <?= htmlspecialchars($dateReceivedDisplay, ENT_QUOTES, 'UTF-8') ?>
-                        <?php endif; ?>
-                    </td>
+                    <td><span class="chip"><?= htmlspecialchars(($a['achievementLevel'] ?? 'Faculty') ?: 'Faculty', ENT_QUOTES, 'UTF-8') ?></span></td>
+                    <td><?= htmlspecialchars($dateReceivedDisplay !== '' ? $dateReceivedDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($a['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
-                        <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
-                        <span class="muted">|</span>
-                        <form method="POST" action="index.php?url=achievement/delete" style="display:inline;">
-                            <?php csrf_field(); ?>
-                            <input type="hidden" name="id" value="<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">
-                            <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
-                                Delete
-                            </button>
-                        </form>
+                        <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
+                        <?php if ($reviewNote !== ''): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                Note: <?= htmlspecialchars($reviewNote, ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                        <?php endif; ?>
+                        <?php if ($evidencePath !== ''): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View proof</a>
+                            </div>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <?php if ($isLocked): ?>
+                            <span class="muted">Locked after approval (admin only)</span>
+                        <?php else: ?>
+                            <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <span class="muted">|</span>
+                            <form method="POST" action="index.php?url=achievement/delete" style="display:inline;">
+                                <?php csrf_field(); ?>
+                                <input type="hidden" name="id" value="<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
+                                    Delete
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -203,26 +289,59 @@
 
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Data Quality</h3>
-                    <span class="chip">Checks</span>
+                    <h3 class="card-title">Top Highlights</h3>
+                    <span class="chip">Portfolio ready</span>
+                </div>
+                <?php if (empty($topHighlights)): ?>
+                    <div class="muted">No highlights yet.</div>
+                <?php else: ?>
+                    <ul class="list">
+                        <?php foreach ($topHighlights as $highlight): ?>
+                            <li class="list-item">
+                                <div>
+                                    <div class="list-item-title"><?= htmlspecialchars($highlight['title'] ?? 'Untitled', ENT_QUOTES, 'UTF-8') ?></div>
+                                    <div class="list-item-sub">
+                                        <?= htmlspecialchars(($highlight['level'] ?? 'Faculty') . (($highlight['category'] ?? '') !== '' ? ' · ' . $highlight['category'] : ''), ENT_QUOTES, 'UTF-8') ?>
+                                    </div>
+                                </div>
+                                <div class="list-item-right"><?= htmlspecialchars(($highlight['dateReceived'] ?? '') !== '' ? $highlight['dateReceived'] : '-', ENT_QUOTES, 'UTF-8') ?></div>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Review Overview</h3>
+                    <span class="chip">Status</span>
                 </div>
                 <ul class="list">
                     <li class="list-item">
                         <div>
-                            <div class="list-item-title">Records with dates</div>
-                            <div class="list-item-sub">Date coverage</div>
+                            <div class="list-item-title">Approved</div>
+                            <div class="list-item-sub">Locked and verified</div>
                         </div>
                         <div class="list-item-right">
-                            <strong><?= (int) $withDatesCount ?></strong> / <?= (int) $totalRecords ?>
+                            <strong><?= (int) $approvedCount ?></strong>
                         </div>
                     </li>
                     <li class="list-item">
                         <div>
-                            <div class="list-item-title">Missing dates</div>
-                            <div class="list-item-sub">Fix missing dates</div>
+                            <div class="list-item-title">Pending</div>
+                            <div class="list-item-sub">Waiting for admin review</div>
                         </div>
                         <div class="list-item-right">
-                            <?= (int) $missingDateCount ?>
+                            <?= (int) $pendingCount ?>
+                        </div>
+                    </li>
+                    <li class="list-item">
+                        <div>
+                            <div class="list-item-title">Rejected</div>
+                            <div class="list-item-sub">Need edits before resubmission</div>
+                        </div>
+                        <div class="list-item-right">
+                            <?= (int) $rejectedCount ?>
                         </div>
                     </li>
                     <li class="list-item">
@@ -235,25 +354,6 @@
                         </div>
                     </li>
                 </ul>
-                <?php if ($missingDateCount > 0): ?>
-                    <div class="muted" style="margin-top:10px;">Records needing update:</div>
-                    <ul class="list" style="margin-top:8px;">
-                        <?php foreach (array_slice($missingDateRecords, 0, 3) as $missing): ?>
-                            <li class="list-item">
-                                <div>
-                                    <div class="list-item-title"><?= htmlspecialchars($missing['title'] ?? 'Untitled', ENT_QUOTES, 'UTF-8') ?></div>
-                                    <div class="list-item-sub">Add award date</div>
-                                </div>
-                                <div class="list-item-right">
-                                    <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($missing['achievementID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">Fix</a>
-                                </div>
-                            </li>
-                        <?php endforeach; ?>
-                        <?php if ($missingDateCount > 3): ?>
-                            <li class="muted">And <?= (int) ($missingDateCount - 3) ?> more record(s).</li>
-                        <?php endif; ?>
-                    </ul>
-                <?php endif; ?>
             </div>
         </div>
     </div>

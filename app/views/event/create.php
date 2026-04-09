@@ -39,13 +39,25 @@
 
     <div class="card">
 
-        <form method="POST" class="form">
+        <form method="POST" enctype="multipart/form-data" class="form">
             <?php csrf_field(); ?>
 
             <div class="form-grid">
                 <div>
                     <label class="label">Event Title</label>
                     <input class="input" type="text" name="eventTitle" placeholder="e.g. Campus Leadership Talk" required>
+                </div>
+
+                <div>
+                    <label class="label">Event Type</label>
+                    <select class="input" name="eventType">
+                        <option value="Leadership">Leadership</option>
+                        <option value="Volunteerism">Volunteerism</option>
+                        <option value="Academic">Academic</option>
+                        <option value="Technical">Technical</option>
+                        <option value="Sports">Sports</option>
+                        <option value="Community">Community</option>
+                    </select>
                 </div>
 
                 <div>
@@ -64,7 +76,17 @@
                 <textarea class="input" name="description" rows="4" placeholder="Add notes or a short summary."></textarea>
             </div>
 
+            <div style="margin-top:14px;">
+                <label class="label">Reflection (What did you learn?)</label>
+                <textarea class="input" name="reflection" rows="4" placeholder="Example: I improved teamwork and communication by coordinating with 30 participants."></textarea>
+            </div>
+
             <div class="form-actions">
+                <div style="width:100%;">
+                    <label class="label">Proof Document (Optional)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
+                    <div class="muted" style="margin-top:6px;">Accepted: PDF, JPG, PNG (max 5MB).</div>
+                </div>
                 <button type="submit" class="btn">Save Record</button>
                 <a href="index.php?url=event/index" class="btn btn-secondary">Cancel</a>
             </div>

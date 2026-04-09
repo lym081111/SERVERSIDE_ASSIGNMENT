@@ -36,11 +36,16 @@ $controllerName = ucfirst($controllerSegment) . "Controller";
 $method = $methodSegment ?: 'index';
 
 if (class_exists($controllerName)) {
-    $controller = new $controllerName();
-    if (is_callable([$controller, $method])) {
-        $controller->$method();
-    } else {
-        echo "Method not found.";
+    try {
+        $controller = new $controllerName();
+        if (is_callable([$controller, $method])) {
+            $controller->$method();
+        } else {
+            echo "Method not found.";
+        }
+    } catch (PDOException $e) {
+        http_response_code(503);
+        echo "Database is temporarily unavailable. Please ensure MySQL is running in XAMPP and refresh the page.";
     }
 } else {
     echo "Controller not found.";

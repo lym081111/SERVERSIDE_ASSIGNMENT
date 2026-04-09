@@ -39,7 +39,7 @@
 
     <div class="card">
 
-        <form method="POST" class="form">
+        <form method="POST" enctype="multipart/form-data" class="form">
             <?php csrf_field(); ?>
 
             <div class="form-grid">
@@ -55,16 +55,22 @@
 
                 <div>
                     <label class="label">Date From</label>
-                    <input class="input" type="date" name="dateFrom">
+                    <input class="input" type="date" name="dateFrom" required>
                 </div>
 
                 <div>
                     <label class="label">Date To</label>
                     <input class="input" type="date" name="dateTo">
+                    <div class="muted" style="margin-top:6px;">Optional for one-day activity. If empty, it follows Date From.</div>
                 </div>
             </div>
 
             <div class="form-actions">
+                <div style="width:100%;">
+                    <label class="label">Proof Document (Optional)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
+                    <div class="muted" style="margin-top:6px;">Accepted: PDF, JPG, PNG (max 5MB).</div>
+                </div>
                 <button type="submit" class="btn">Save Record</button>
                 <a href="index.php?url=merit/index" class="btn btn-secondary">Cancel</a>
             </div>
