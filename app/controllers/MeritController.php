@@ -93,19 +93,14 @@ class MeritController {
 
                 $targetUserID = $_SESSION['user_id'];
                 if ($this->isAdmin()) {
-                    $targetUserID = (int) ($_POST['studentID'] ?? 0);
-                    $studentEmail = trim((string) ($_POST['studentEmail'] ?? ''));
-                    $studentId = trim((string) ($_POST['studentId'] ?? ''));
-                    if ($targetUserID <= 0 && $studentEmail !== '') {
-                        $student = User::findByEmail($studentEmail);
-                        $targetUserID = $student['userID'] ?? 0;
-                    }
-                    if ($targetUserID <= 0 && $studentId !== '') {
-                        $student = User::findByStudentId($studentId);
-                        $targetUserID = $student['userID'] ?? 0;
-                    }
+                    $selection = User::resolveStudentSelectionForAdmin(
+                        $_POST['studentID'] ?? 0,
+                        $_POST['studentEmail'] ?? '',
+                        $_POST['studentId'] ?? ''
+                    );
+                    $targetUserID = (int) ($selection['userID'] ?? 0);
                     if ($targetUserID <= 0) {
-                        $error = "Please select a valid student.";
+                        $error = (string) ($selection['error'] ?? "Please select a valid student.");
                     }
                 }
 

@@ -23,6 +23,48 @@
     $activeClubCountValue = isset($activeClubCount) ? (int) $activeClubCount : 0;
 ?>
 
+<style>
+    .content.dashboard-shell {
+        background:
+            radial-gradient(circle at 10% 12%, rgba(30, 64, 175, 0.08), transparent 40%),
+            radial-gradient(circle at 90% 2%, rgba(14, 165, 233, 0.08), transparent 34%),
+            #f3f5fb;
+    }
+
+    .dashboard-shell .page-header {
+        background: linear-gradient(135deg, rgba(30, 64, 175, 0.08), rgba(255, 255, 255, 0.96) 65%);
+        border: 1px solid rgba(37, 99, 235, 0.16);
+        border-radius: 18px;
+        padding: 20px 22px;
+        margin-bottom: 16px;
+    }
+
+    .dashboard-shell .page-subtitle {
+        margin-bottom: 0;
+    }
+
+    .dashboard-shell .kpi-card {
+        border-width: 0;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+    }
+
+    .dashboard-shell .kpi-card:nth-child(1) {
+        background: linear-gradient(135deg, #eff6ff, #ffffff 58%);
+    }
+
+    .dashboard-shell .kpi-card:nth-child(2) {
+        background: linear-gradient(135deg, #ecfeff, #ffffff 58%);
+    }
+
+    .dashboard-shell .kpi-card:nth-child(3) {
+        background: linear-gradient(135deg, #f0fdf4, #ffffff 58%);
+    }
+
+    .dashboard-shell .kpi-card:nth-child(4) {
+        background: linear-gradient(135deg, #fffbeb, #ffffff 58%);
+    }
+</style>
+
 <div class="main">
 
     <div class="topbar">
@@ -35,7 +77,7 @@
         </div>
     </div>
 
-    <div class="content">
+    <div class="content dashboard-shell">
         <div class="content-inner">
 
         <div class="page-header">
@@ -49,12 +91,6 @@
         </div>
 
         <div class="kpi-grid">
-            <div class="kpi-card">
-                <div class="kpi-label">Merit Hours</div>
-                <div class="kpi-value"><?= (int) round($meritHoursValue) ?></div>
-                <div class="kpi-sub">Across <?= (int) $meritCountValue ?> records</div>
-            </div>
-
             <div class="kpi-card">
                 <div class="kpi-label">Events</div>
                 <div class="kpi-value"><?= (int) $eventCountValue ?></div>

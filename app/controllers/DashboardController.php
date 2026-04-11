@@ -92,6 +92,31 @@ class DashboardController {
         $userID = (int) $_SESSION['user_id'];
         $db = Database::connect();
 
+        // Keep sidebar snapshot consistent with dashboard/index values.
+        $stmt = $db->prepare("SELECT SUM(hours) FROM merits WHERE userID = ?");
+        $stmt->execute([$userID]);
+        $meritHours = $stmt->fetchColumn() ?? 0;
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM merits WHERE userID = ?");
+        $stmt->execute([$userID]);
+        $meritCount = $stmt->fetchColumn() ?? 0;
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM events WHERE userID = ?");
+        $stmt->execute([$userID]);
+        $eventCount = $stmt->fetchColumn() ?? 0;
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ?");
+        $stmt->execute([$userID]);
+        $clubCount = $stmt->fetchColumn() ?? 0;
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ? AND (endDate IS NULL OR endDate = '')");
+        $stmt->execute([$userID]);
+        $activeClubCount = $stmt->fetchColumn() ?? 0;
+
+        $stmt = $db->prepare("SELECT COUNT(*) FROM achievements WHERE userID = ?");
+        $stmt->execute([$userID]);
+        $achievementCount = $stmt->fetchColumn() ?? 0;
+
         $studentStmt = $db->prepare("SELECT userID, student_id, name, email, created_at FROM users WHERE userID = ?");
         $studentStmt->execute([$userID]);
         $student = $studentStmt->fetch(PDO::FETCH_ASSOC);

@@ -1,4 +1,18 @@
 <?php require "../app/views/layout/header.php"; ?>
+<?php
+    $isLoggedIn = !empty($_SESSION['user_id']);
+    $isAdmin = !empty($_SESSION['isAdmin']);
+    $backUrl = 'index.php?url=auth/login';
+    $backLabel = 'Back to Login';
+
+    if ($isLoggedIn && $isAdmin) {
+        $backUrl = 'index.php?url=admin/index';
+        $backLabel = 'Back to Admin';
+    } elseif ($isLoggedIn) {
+        $backUrl = 'index.php?url=dashboard/index';
+        $backLabel = 'Back to Dashboard';
+    }
+?>
 
 <div class="main" style="margin-left:0;">
     <div class="topbar">
@@ -6,7 +20,7 @@
             <div class="topbar-title">Certificate Verification</div>
         </div>
         <div class="topbar-actions">
-            <a href="index.php?url=auth/login" class="btn btn-secondary">Back to Login</a>
+            <a href="<?= htmlspecialchars($backUrl, ENT_QUOTES, 'UTF-8') ?>" class="btn btn-secondary"><?= htmlspecialchars($backLabel, ENT_QUOTES, 'UTF-8') ?></a>
         </div>
     </div>
 

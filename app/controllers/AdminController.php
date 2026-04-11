@@ -51,8 +51,6 @@ class AdminController {
         $approvalRate = $totalReviewed > 0 ? round(($totalApproved / $totalReviewed) * 100, 1) : 0;
 
         $totalMeritHours = (float) ($db->query("SELECT COALESCE(SUM(hours), 0) FROM merits")->fetchColumn() ?? 0);
-        $newUsers30d = (int) ($db->query("SELECT COUNT(*) FROM users WHERE isAdmin = 0 AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)")->fetchColumn() ?? 0);
-
         $activeStudentCount = (int) ($db->query(
             "SELECT COUNT(DISTINCT userID) FROM (
                 SELECT userID FROM merits
@@ -100,11 +98,44 @@ class AdminController {
             ],
         ];
 
-        $pendingQueue = $db->query(
-            "SELECT * FROM (
+        $queueModuleOptions = [
+            'all' => 'All Modules',
+            'merit' => 'Merit',
+            'event' => 'Event',
+            'club' => 'Club',
+            'achievement' => 'Achievement',
+        ];
+
+        $queueSortOptions = [
+            'oldest' => 'Oldest First',
+            'newest' => 'Newest First',
+            'student_az' => 'Student A-Z',
+            'student_za' => 'Student Z-A',
+        ];
+
+        $queueModule = strtolower(trim((string) ($_GET['queue_module'] ?? 'all')));
+        if (!array_key_exists($queueModule, $queueModuleOptions)) {
+            $queueModule = 'all';
+        }
+
+        $queueSort = strtolower(trim((string) ($_GET['queue_sort'] ?? 'oldest')));
+        if (!array_key_exists($queueSort, $queueSortOptions)) {
+            $queueSort = 'oldest';
+        }
+
+        $queueSortSqlMap = [
+            'oldest' => 'submittedAt ASC',
+            'newest' => 'submittedAt DESC',
+            'student_az' => 'studentName ASC, submittedAt ASC',
+            'student_za' => 'studentName DESC, submittedAt ASC',
+        ];
+        $queueOrderBy = $queueSortSqlMap[$queueSort];
+
+        $pendingQueueBaseSql = "SELECT * FROM (
                 SELECT 'Merit' AS module, m.meritID AS recordID, m.activityName AS recordTitle,
                        m.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
-                       'index.php?url=merit/index' AS listUrl
+                       'merit' AS moduleKey,
+                       'index.php?url=merit/index&status=pending' AS listUrl
                 FROM merits m
                 JOIN users u ON u.userID = m.userID
                 WHERE m.status = 'pending'
@@ -113,7 +144,8 @@ class AdminController {
 
                 SELECT 'Event' AS module, e.eventID AS recordID, e.eventTitle AS recordTitle,
                        e.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
-                       'index.php?url=event/index' AS listUrl
+                       'event' AS moduleKey,
+                       'index.php?url=event/index&status=pending' AS listUrl
                 FROM events e
                 JOIN users u ON u.userID = e.userID
                 WHERE e.status = 'pending'
@@ -122,7 +154,8 @@ class AdminController {
 
                 SELECT 'Club' AS module, c.clubID AS recordID, c.clubName AS recordTitle,
                        c.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
-                       'index.php?url=club/index' AS listUrl
+                       'club' AS moduleKey,
+                       'index.php?url=club/index&status=pending' AS listUrl
                 FROM clubs c
                 JOIN users u ON u.userID = c.userID
                 WHERE c.status = 'pending'
@@ -131,31 +164,49 @@ class AdminController {
 
                 SELECT 'Achievement' AS module, a.achievementID AS recordID, a.title AS recordTitle,
                        a.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
-                       'index.php?url=achievement/index' AS listUrl
+                       'achievement' AS moduleKey,
+                       'index.php?url=achievement/index&status=pending' AS listUrl
                 FROM achievements a
                 JOIN users u ON u.userID = a.userID
                 WHERE a.status = 'pending'
-            ) AS pendingRecords
-            ORDER BY submittedAt ASC
-            LIMIT 12"
-        )->fetchAll(PDO::FETCH_ASSOC);
+            ) AS pendingRecords";
 
-        $studentSummaries = $db->query(
-            "SELECT u.userID, u.student_id, u.name, u.email,
-                    (SELECT COUNT(*) FROM merits m WHERE m.userID = u.userID) AS meritCount,
-                    (SELECT COUNT(*) FROM events e WHERE e.userID = u.userID) AS eventCount,
-                    (SELECT COUNT(*) FROM clubs c WHERE c.userID = u.userID) AS clubCount,
-                    (SELECT COUNT(*) FROM achievements a WHERE a.userID = u.userID) AS achievementCount
-             FROM users u
-             WHERE COALESCE(u.isAdmin, 0) = 0
-             ORDER BY (
-                    (SELECT COUNT(*) FROM merits m WHERE m.userID = u.userID) +
-                    (SELECT COUNT(*) FROM events e WHERE e.userID = u.userID) +
-                    (SELECT COUNT(*) FROM clubs c WHERE c.userID = u.userID) +
-                    (SELECT COUNT(*) FROM achievements a WHERE a.userID = u.userID)
-             ) DESC, u.name ASC
-             LIMIT 8"
-        )->fetchAll(PDO::FETCH_ASSOC);
+        $pendingQueueSql = $pendingQueueBaseSql;
+        $pendingQueueParams = [];
+
+        if ($queueModule !== 'all') {
+            $pendingQueueSql .= " WHERE moduleKey = :queueModule";
+            $pendingQueueParams[':queueModule'] = $queueModule;
+        }
+
+        $pendingQueueSql .= " ORDER BY {$queueOrderBy} LIMIT 20";
+
+        $pendingQueueStmt = $db->prepare($pendingQueueSql);
+        $pendingQueueStmt->execute($pendingQueueParams);
+        $pendingQueue = $pendingQueueStmt->fetchAll(PDO::FETCH_ASSOC);
+
+        if (!empty($pendingQueue)) {
+            foreach ($pendingQueue as &$queueRow) {
+                $moduleKey = strtolower((string) ($queueRow['moduleKey'] ?? ''));
+                $recordId = (int) ($queueRow['recordID'] ?? 0);
+                $reviewUrl = (string) ($queueRow['listUrl'] ?? 'index.php?url=admin/index');
+
+                if ($recordId > 0) {
+                    if ($moduleKey === 'merit') {
+                        $reviewUrl = 'index.php?url=merit/edit&id=' . $recordId;
+                    } elseif ($moduleKey === 'event') {
+                        $reviewUrl = 'index.php?url=event/edit&id=' . $recordId;
+                    } elseif ($moduleKey === 'club') {
+                        $reviewUrl = 'index.php?url=club/edit&id=' . $recordId;
+                    } elseif ($moduleKey === 'achievement') {
+                        $reviewUrl = 'index.php?url=achievement/edit&id=' . $recordId;
+                    }
+                }
+
+                $queueRow['reviewUrl'] = $reviewUrl;
+            }
+            unset($queueRow);
+        }
 
         require "../app/views/admin/index.php";
     }
