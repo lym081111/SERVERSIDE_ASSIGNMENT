@@ -33,17 +33,35 @@ class DashboardController {
         $stmt->execute([$userID]);
         $latestEventDate = $stmt->fetchColumn() ?: null;
 
-        $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ?");
+        $stmt = $db->prepare("SELECT COUNT(DISTINCT clubName) FROM clubs WHERE userID = ? AND status = 'approved'");
         $stmt->execute([$userID]);
-        $clubCount = $stmt->fetchColumn() ?? 0;
+        $clubCount = (int) ($stmt->fetchColumn() ?? 0);
 
         $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ? AND status = 'pending'");
         $stmt->execute([$userID]);
         $pendingClubCount = (int) ($stmt->fetchColumn() ?? 0);
 
-        $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ? AND (endDate IS NULL OR endDate = '')");
-        $stmt->execute([$userID]);
-        $activeClubCount = $stmt->fetchColumn() ?? 0;
+        $today = date('Y-m-d');
+        $stmt = $db->prepare(
+            "SELECT COUNT(DISTINCT clubName)
+             FROM clubs
+             WHERE userID = ?
+               AND status = 'approved'
+               AND (
+                    startDate IS NULL
+                    OR startDate = ''
+                    OR startDate = '0000-00-00'
+                    OR startDate <= ?
+               )
+               AND (
+                    endDate IS NULL
+                    OR endDate = ''
+                    OR endDate = '0000-00-00'
+                    OR endDate >= ?
+               )"
+        );
+        $stmt->execute([$userID, $today, $today]);
+        $activeClubCount = (int) ($stmt->fetchColumn() ?? 0);
 
         $stmt = $db->prepare("SELECT MAX(startDate) FROM clubs WHERE userID = ?");
         $stmt->execute([$userID]);
@@ -105,13 +123,31 @@ class DashboardController {
         $stmt->execute([$userID]);
         $eventCount = $stmt->fetchColumn() ?? 0;
 
-        $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ?");
+        $stmt = $db->prepare("SELECT COUNT(DISTINCT clubName) FROM clubs WHERE userID = ? AND status = 'approved'");
         $stmt->execute([$userID]);
-        $clubCount = $stmt->fetchColumn() ?? 0;
+        $clubCount = (int) ($stmt->fetchColumn() ?? 0);
 
-        $stmt = $db->prepare("SELECT COUNT(*) FROM clubs WHERE userID = ? AND (endDate IS NULL OR endDate = '')");
-        $stmt->execute([$userID]);
-        $activeClubCount = $stmt->fetchColumn() ?? 0;
+        $today = date('Y-m-d');
+        $stmt = $db->prepare(
+            "SELECT COUNT(DISTINCT clubName)
+             FROM clubs
+             WHERE userID = ?
+               AND status = 'approved'
+               AND (
+                    startDate IS NULL
+                    OR startDate = ''
+                    OR startDate = '0000-00-00'
+                    OR startDate <= ?
+               )
+               AND (
+                    endDate IS NULL
+                    OR endDate = ''
+                    OR endDate = '0000-00-00'
+                    OR endDate >= ?
+               )"
+        );
+        $stmt->execute([$userID, $today, $today]);
+        $activeClubCount = (int) ($stmt->fetchColumn() ?? 0);
 
         $stmt = $db->prepare("SELECT COUNT(*) FROM achievements WHERE userID = ?");
         $stmt->execute([$userID]);
@@ -137,10 +173,18 @@ class DashboardController {
             $approvedMeritHours += (float) ($row['hours'] ?? 0);
         }
 
+        $approvedClubNames = [];
+        foreach ($approvedClubs as $row) {
+            $clubName = strtolower(trim((string) ($row['clubName'] ?? '')));
+            if ($clubName !== '') {
+                $approvedClubNames[$clubName] = true;
+            }
+        }
+
         $summary = [
             'merits' => count($approvedMerits),
             'events' => count($approvedEvents),
-            'clubs' => count($approvedClubs),
+            'clubs' => count($approvedClubNames),
             'achievements' => count($approvedAchievements),
             'merit_hours' => $approvedMeritHours,
         ];

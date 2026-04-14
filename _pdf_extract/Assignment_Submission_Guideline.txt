@@ -1,0 +1,111 @@
+FILE: c:\Users\User\OneDrive\Documents\DEGREE Y3\SEM1\SERVER SIDE\Assignment_Submission_Guideline.pdf
+PAGES: 10
+
+
+===== PAGE 1 =====
+Assignment Submission 
+Guideline
+UCCD3243 Server-Side Web Applications 
+Development
+Feb-May 2026
+1
+
+===== PAGE 2 =====
+Reminder
+• Please ensure that the names on your cover page & rubric mark 
+are listed exactly in the same order as you filled in the Excel sheet 
+(Click this link to view the excel).
+2
+
+
+===== PAGE 3 =====
+Guideline Recommendation (Report- Part): Functional Requirements
+• Include 1 screenshot per module (optional but recommended).
+• State the module name and purpose: Briefly describe what the module is for.
+• List each core feature : Number them clearly (Feature 1, Feature 2, etc.).
+• Ensure clear explanation for each core functional requirement (For every feature, 
+you may describe):
+• What the user does (input or action).
+• What the system does (process or response).
+• Data/fields involved (example: name, date, amount).
+• Validation rules (example: required fields, limits).
+• Expected outcome (what happens after the action?).
+Keep it readable, no need for multiple screenshots.
+3
+
+===== PAGE 4 =====
+Video Recording Guideline
+• Use Microsoft Teams for recording:
+• All group members must turn on their cameras during their presentation.
+• Use screen sharing to demonstrate the web application.
+• The presenter’s name must be visible on the screen.
+• Flow presentation:
+• Individual Modules – Each member presents their module (4-5 minutes 
+each).
+• Group Integration – Group leader presents system integration and key 
+findings (5-7 minutes).
+• Total duration: Max 30 minutes
+• Ensure good video and audio quality to avoid disruptions.
+4
+
+===== PAGE 5 =====
+Presentation Flow
+1. INDIVIDUAL MODULE DEMONSTRATION:
+• Each member will present their assigned module with a proper 
+screen share and demonstration.
+• Introduce yourself and your module.
+• Demonstrate the module’s core functionalities, including CRUD 
+operations to showcase the complete workflow.
+• Highlight validations and error handling specific to your module.
+5
+
+===== PAGE 6 =====
+Presentation Flow
+2. GROUP INTEGRATION DEMONSTRATION:
+• The group leader will represent the team and summarise how all 
+modules are connected and function as a complete system.
+• Summarise user roles and access control (admin/user etc.).
+• Highlight how data flows between modules and how they are 
+integrated.
+• Showcase any special functions or innovative elements added 
+beyond the basic requirements.
+6
+
+===== PAGE 7 =====
+Google Form for Assignment Submission: https://forms.gle/5uH45KbmCuaqtrYx5 7
+
+
+===== PAGE 8 =====
+Submission Instructions
+• Each group must submit the following items via Google Form.
+• Ensure all files are properly organized and named before submission.
+• NO LATE SUBMISSION
+• Required attachments:
+• Upload the Project Report (Word file) directly in Google Form.
+• Ensure the report includes a cover page with the rubric mark (Refer to WBLE).
+• Upload ZIP File & Video Recording to Your Google Drive
+• Create a Google Drive folder named: UCCD3243 Group [Your Group Number] AS
+• Upload (Refer page 9):
+• ZIP File (Containing all PHP source code & database .sql file inside a “database” folder).
+• Video Recording of the project demonstration.
+• Set folder access to “Anyone with the link can view. ” (Make it public access)
+• Copy and paste the Google Drive folder link in the Google Form submission field.
+8
+
+===== PAGE 9 =====
+SAMPLE OVERVIEW
+• Create a “database” folder in your project.
+• Save the final exported SQL file inside it before submission.
+• Compress the entire project folder (including all source code and the database folder) 
+into one ZIP file before submission.
+• Rename the ZIP file as: GroupNo_WebFolder.zip
+9
+
+===== PAGE 10 =====
+SAMPLE OVERVIEW
+Upload the following files to your Google Drive:
+• ZIP File: Rename as GroupNo_webFolder.zip
+• Video Recording: Rename as 
+GroupNo_demoWeb.mp4
+Set file access to: “Anyone with the link can edit”
+Copy and submit the shared Google Drive link in the Google Form. 10

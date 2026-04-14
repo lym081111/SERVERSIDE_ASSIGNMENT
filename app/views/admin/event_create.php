@@ -26,14 +26,14 @@
         <div>
             <div class="admin-eyebrow">Admin Entry</div>
             <h1 class="admin-title">Create Event for Student</h1>
-            <p class="admin-subtitle">Assign an event record to a registered student.</p>
+            <p class="admin-subtitle">Assign an event to a student under a club they joined.</p>
         </div>
         <div class="admin-hero-actions">
             <a class="btn btn-secondary" href="index.php?url=event/index">Back</a>
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
@@ -54,7 +54,7 @@
                         <input class="input" type="text" name="studentId" list="student-ids" placeholder="Start typing student ID...">
                         <datalist id="student-ids">
                             <?php foreach ($students as $s): ?>
-                                <option value="<?= htmlspecialchars($s['student_id'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <option value="<?= htmlspecialchars((string) ($s['student_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                             <?php endforeach; ?>
                         </datalist>
                     </div>
@@ -63,7 +63,7 @@
                         <input class="input" type="text" name="studentEmail" list="student-emails" placeholder="Start typing email...">
                         <datalist id="student-emails">
                             <?php foreach ($students as $s): ?>
-                                <option value="<?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <option value="<?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                             <?php endforeach; ?>
                         </datalist>
                     </div>
@@ -72,8 +72,8 @@
                         <select class="input" name="studentID">
                             <option value="">Select student</option>
                             <?php foreach ($students as $s): ?>
-                                <option value="<?= htmlspecialchars($s['userID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                                    <?= htmlspecialchars($s['name'] ?? '', ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($s['student_id'] ?? '-', ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)
+                                <option value="<?= htmlspecialchars((string) ($s['userID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars((string) ($s['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($s['student_id'] ?? '-'), ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -82,8 +82,20 @@
 
                 <div class="form-grid" style="margin-top:14px;">
                     <div>
+                        <label class="label">Club</label>
+                        <select class="input" name="clubCatalogID" required>
+                            <option value="">Select club</option>
+                            <?php foreach ($clubCatalog as $clubDef): ?>
+                                <option value="<?= htmlspecialchars((string) ($clubDef['clubCatalogID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars((string) ($clubDef['clubName'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="label">Event Title</label>
-                        <input class="input" type="text" name="eventTitle" placeholder="e.g. Leadership Talk" required>
+                        <input class="input" type="text" name="eventTitle" placeholder="e.g. UTAR Hackathon" required>
                     </div>
 
                     <div>
@@ -101,6 +113,11 @@
                     <div>
                         <label class="label">Event Date</label>
                         <input class="input" type="date" name="eventDate" required>
+                    </div>
+
+                    <div>
+                        <label class="label">Event Hours</label>
+                        <input class="input" type="number" name="eventHours" step="0.01" min="0.01" placeholder="e.g. 2" required>
                     </div>
 
                     <div>
@@ -133,4 +150,3 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
-

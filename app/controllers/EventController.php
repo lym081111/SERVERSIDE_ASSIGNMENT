@@ -33,6 +33,20 @@ class EventController {
         return in_array($type, $allowed, true) ? $type : 'Leadership';
     }
 
+    private function resolvePostedClubCatalog($clubCatalogID) {
+        $clubCatalogID = (int) $clubCatalogID;
+        if ($clubCatalogID <= 0) {
+            return null;
+        }
+
+        $clubDefinition = ClubCatalog::findById($clubCatalogID);
+        if (!$clubDefinition || (int) ($clubDefinition['is_active'] ?? 0) !== 1) {
+            return null;
+        }
+
+        return $clubDefinition;
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -47,7 +61,7 @@ class EventController {
             return;
         }
 
-        $userID = $_SESSION['user_id'];
+        $userID = (int) $_SESSION['user_id'];
         $events = Event::getByUser($userID, $search, $sort, $status);
 
         require "../app/views/event/index.php";
@@ -59,71 +73,114 @@ class EventController {
 
         $error = null;
 
+        if ($this->isAdmin()) {
+            $students = User::getAll();
+            $clubCatalog = ClubCatalog::getAllActive();
+        } else {
+            $userID = (int) $_SESSION['user_id'];
+            $clubCatalog = Club::getApprovedActiveClubCatalogByUser($userID);
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
+            $eventTitle = trim((string) ($_POST['eventTitle'] ?? ''));
             $eventDate = trim((string) ($_POST['eventDate'] ?? ''));
             $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
             $eventType = $this->normalizeEventType($_POST['eventType'] ?? 'Leadership');
+            $location = trim((string) ($_POST['location'] ?? ''));
+            $description = trim((string) ($_POST['description'] ?? ''));
             $reflection = trim((string) ($_POST['reflection'] ?? ''));
+            $eventHours = isset($_POST['eventHours']) ? (float) $_POST['eventHours'] : 0.0;
 
-            if (empty($_POST['eventTitle']) || $eventDate === '') {
+            $clubDefinition = $this->resolvePostedClubCatalog($_POST['clubCatalogID'] ?? 0);
+            if (!$clubDefinition) {
+                $error = "Please select a valid active club.";
+            }
+
+            if ($error === null && ($eventTitle === '' || $eventDate === '')) {
                 $error = "Event title and date are required.";
-            } else {
-                $targetUserID = $_SESSION['user_id'];
-                if ($this->isAdmin()) {
-                    $selection = User::resolveStudentSelectionForAdmin(
-                        $_POST['studentID'] ?? 0,
-                        $_POST['studentEmail'] ?? '',
-                        $_POST['studentId'] ?? ''
-                    );
-                    $targetUserID = (int) ($selection['userID'] ?? 0);
-                    if ($targetUserID <= 0) {
-                        $error = (string) ($selection['error'] ?? "Please select a valid student.");
+            }
+
+            if ($error === null && $eventHours <= 0) {
+                $error = "Event hours must be greater than 0.";
+            }
+
+            $targetUserID = (int) $_SESSION['user_id'];
+            if ($this->isAdmin() && $error === null) {
+                $selection = User::resolveStudentSelectionForAdmin(
+                    $_POST['studentID'] ?? 0,
+                    $_POST['studentEmail'] ?? '',
+                    $_POST['studentId'] ?? ''
+                );
+                $targetUserID = (int) ($selection['userID'] ?? 0);
+                if ($targetUserID <= 0) {
+                    $error = (string) ($selection['error'] ?? "Please select a valid student.");
+                }
+            }
+
+            if ($error === null && !$this->isAdmin()) {
+                $isAllowedClub = false;
+                foreach ($clubCatalog as $clubRow) {
+                    if ((int) ($clubRow['clubCatalogID'] ?? 0) === (int) ($clubDefinition['clubCatalogID'] ?? 0)) {
+                        $isAllowedClub = true;
+                        break;
                     }
                 }
-
-                $evidencePath = null;
-                if ($error === null) {
-                    $upload = EvidenceUpload::uploadFromRequest('evidence_file');
-                    if ($upload['error'] !== null) {
-                        $error = $upload['error'];
-                    } else {
-                        $evidencePath = $upload['path'];
-                    }
+                if (!$isAllowedClub) {
+                    $error = "You can only create events under clubs that you have joined and have been approved.";
                 }
+            }
 
-                if ($error === null) {
-                    $status = $this->isAdmin() ? 'approved' : 'pending';
-                    $reviewedBy = $this->isAdmin() ? (int) $_SESSION['user_id'] : null;
-                    $reviewedAt = $this->isAdmin() ? date('Y-m-d H:i:s') : null;
-                    Event::create(
-                        $targetUserID,
-                        $_POST['eventTitle'],
-                        $eventType,
-                        $eventDate,
-                        $_POST['location'],
-                        $_POST['description'],
-                        $reflection === '' ? null : $reflection,
-                        $status,
-                        $reviewedBy,
-                        null,
-                        $reviewedAt,
-                        $evidencePath
-                    );
-
-                    $_SESSION['success'] = $this->isAdmin()
-                        ? "Event record added and approved."
-                        : "Event record submitted for review.";
-                    header("Location: index.php?url=event/index");
-                    exit();
+            if ($error === null && $this->isAdmin()) {
+                $clubName = trim((string) ($clubDefinition['clubName'] ?? ''));
+                if ($clubName === '' || !Club::hasActiveApprovedMembership($targetUserID, $clubName)) {
+                    $error = "Selected student does not have an active approved membership in this club.";
                 }
+            }
+
+            $evidencePath = null;
+            if ($error === null) {
+                $upload = EvidenceUpload::uploadFromRequest('evidence_file');
+                if ($upload['error'] !== null) {
+                    $error = $upload['error'];
+                } else {
+                    $evidencePath = $upload['path'];
+                }
+            }
+
+            if ($error === null) {
+                $status = $this->isAdmin() ? 'approved' : 'pending';
+                $reviewedBy = $this->isAdmin() ? (int) $_SESSION['user_id'] : null;
+                $reviewedAt = $this->isAdmin() ? date('Y-m-d H:i:s') : null;
+
+                Event::create(
+                    $targetUserID,
+                    (int) ($clubDefinition['clubCatalogID'] ?? 0),
+                    $eventTitle,
+                    $eventType,
+                    $eventDate,
+                    $eventHours,
+                    $location,
+                    $description,
+                    $reflection === '' ? null : $reflection,
+                    $status,
+                    $reviewedBy,
+                    null,
+                    $reviewedAt,
+                    $evidencePath
+                );
+
+                $_SESSION['success'] = $this->isAdmin()
+                    ? "Event record added and approved."
+                    : "Event record submitted for review.";
+                header("Location: index.php?url=event/index");
+                exit();
             }
         }
 
         if ($this->isAdmin()) {
-            $students = User::getAll();
             require "../app/views/admin/event_create.php";
             return;
         }
@@ -147,10 +204,11 @@ class EventController {
 
         if ($this->isAdmin()) {
             $event = Event::findById($id);
-            $students = User::getAll();
             if (!$event) {
                 $this->redirectWithError("Event record not found.");
             }
+            $student = User::findById((int) ($event['userID'] ?? 0));
+            $clubCatalog = ClubCatalog::getAllActive();
         } else {
             $event = Event::find($id, $userID);
             if (!$event) {
@@ -159,30 +217,68 @@ class EventController {
             if (($event['status'] ?? '') === 'approved') {
                 $this->redirectWithError("Approved event records can only be edited by admin.");
             }
+            $clubCatalog = Club::getApprovedActiveClubCatalogByUser($userID);
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
+            $eventTitle = trim((string) ($_POST['eventTitle'] ?? ''));
             $eventDate = trim((string) ($_POST['eventDate'] ?? ''));
             $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
             $eventType = $this->normalizeEventType($_POST['eventType'] ?? 'Leadership');
+            $location = trim((string) ($_POST['location'] ?? ''));
+            $description = trim((string) ($_POST['description'] ?? ''));
             $reflection = trim((string) ($_POST['reflection'] ?? ''));
+            $eventHours = isset($_POST['eventHours']) ? (float) $_POST['eventHours'] : 0.0;
 
-            if (empty($_POST['eventTitle']) || $eventDate === '') {
+            $clubDefinition = $this->resolvePostedClubCatalog($_POST['clubCatalogID'] ?? 0);
+            if (!$clubDefinition) {
+                $error = "Please select a valid active club.";
+            }
+
+            if ($error === null && ($eventTitle === '' || $eventDate === '')) {
                 $error = "Event title and date are required.";
+            }
+
+            if ($error === null && $eventHours <= 0) {
+                $error = "Event hours must be greater than 0.";
+            }
+
+            $targetUserID = $this->isAdmin() ? (int) ($event['userID'] ?? 0) : $userID;
+
+            if ($error === null && !$this->isAdmin()) {
+                $isAllowedClub = false;
+                foreach ($clubCatalog as $clubRow) {
+                    if ((int) ($clubRow['clubCatalogID'] ?? 0) === (int) ($clubDefinition['clubCatalogID'] ?? 0)) {
+                        $isAllowedClub = true;
+                        break;
+                    }
+                }
+                if (!$isAllowedClub) {
+                    $error = "You can only create events under clubs that you have joined and have been approved.";
+                }
+            }
+
+            if ($error === null && $this->isAdmin()) {
+                $clubName = trim((string) ($clubDefinition['clubName'] ?? ''));
+                if ($clubName === '' || !Club::hasActiveApprovedMembership($targetUserID, $clubName)) {
+                    $error = "Selected student does not have an active approved membership in this club.";
+                }
             }
 
             if ($error === null) {
                 if ($this->isAdmin()) {
                     Event::updateById(
                         $id,
-                        $_POST['eventTitle'],
+                        (int) ($clubDefinition['clubCatalogID'] ?? 0),
+                        $eventTitle,
                         $eventType,
                         $eventDate,
-                        $_POST['location'],
-                        $_POST['description'],
+                        $eventHours,
+                        $location,
+                        $description,
                         $reflection === '' ? null : $reflection
                     );
                     if (isset($_POST['status'])) {
@@ -199,11 +295,13 @@ class EventController {
                         Event::update(
                             $id,
                             $userID,
-                            $_POST['eventTitle'],
+                            (int) ($clubDefinition['clubCatalogID'] ?? 0),
+                            $eventTitle,
                             $eventType,
                             $eventDate,
-                            $_POST['location'],
-                            $_POST['description'],
+                            $eventHours,
+                            $location,
+                            $description,
                             $reflection === '' ? null : $reflection,
                             $upload['path'],
                             $upload['uploaded']
@@ -241,16 +339,18 @@ class EventController {
         header('Content-Disposition: attachment; filename="my_event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Event Title', 'Event Type', 'Event Date', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
             $eventDate = ($eventDate === '' || $eventDate === '0000-00-00') ? '' : $eventDate;
 
             fputcsv($output, [
+                $row['clubName'] ?? '',
                 $row['eventTitle'] ?? '',
                 $row['eventType'] ?? '',
                 $eventDate,
+                $row['eventHours'] ?? '',
                 $row['location'] ?? '',
                 $row['description'] ?? '',
                 $row['reflection'] ?? '',
@@ -277,7 +377,7 @@ class EventController {
         header('Content-Disposition: attachment; filename="event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Event Title', 'Event Type', 'Event Date', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
@@ -287,9 +387,11 @@ class EventController {
                 $row['userName'] ?? '',
                 $row['studentId'] ?? '',
                 $row['userEmail'] ?? '',
+                $row['clubName'] ?? '',
                 $row['eventTitle'] ?? '',
                 $row['eventType'] ?? '',
                 $eventDate,
+                $row['eventHours'] ?? '',
                 $row['location'] ?? '',
                 $row['description'] ?? '',
                 $row['reflection'] ?? '',

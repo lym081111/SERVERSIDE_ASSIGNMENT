@@ -77,7 +77,7 @@
                     type="text"
                     name="search"
                     class="input"
-                    placeholder="Search student, ID, email, title, category, level, or description..."
+                    placeholder="Search student, title, event, club, category, level, or description..."
                     value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                 <?php $currentSort = $_GET['sort'] ?? 'achievementID'; ?>
@@ -85,6 +85,8 @@
                     <option value="achievementID" <?= $currentSort === 'achievementID' ? 'selected' : '' ?>>Newest</option>
                     <option value="student" <?= $currentSort === 'student' ? 'selected' : '' ?>>Student Name</option>
                     <option value="student_id" <?= $currentSort === 'student_id' ? 'selected' : '' ?>>Student ID</option>
+                    <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club</option>
+                    <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event</option>
                     <option value="title" <?= $currentSort === 'title' ? 'selected' : '' ?>>Title</option>
                     <option value="category" <?= $currentSort === 'category' ? 'selected' : '' ?>>Category</option>
                     <option value="achievementLevel" <?= $currentSort === 'achievementLevel' ? 'selected' : '' ?>>Level</option>
@@ -117,6 +119,8 @@
                     <th>Student</th>
                     <th>Student ID</th>
                     <th>Email</th>
+                    <th>Club</th>
+                    <th>Event</th>
                     <th>Title</th>
                     <th>Category</th>
                     <th>Level</th>
@@ -129,7 +133,7 @@
                 </tr>
                 <?php if (empty($achievements)): ?>
                     <tr>
-                        <td colspan="12" class="muted">No achievement records found.</td>
+                        <td colspan="14" class="muted">No achievement records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($achievements as $a): ?>
@@ -142,6 +146,8 @@
                         <td><?= htmlspecialchars($a['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($a['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($a['userEmail'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) ($a['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) ($a['eventTitle'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($a['title'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($a['category'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars(($a['achievementLevel'] ?? 'Faculty') ?: 'Faculty', ENT_QUOTES, 'UTF-8') ?></td>

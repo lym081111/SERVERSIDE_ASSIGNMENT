@@ -148,6 +148,26 @@
             border-left: 4px solid #10b981;
         }
 
+        .alert-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .password-help {
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
+        .password-help.weak {
+            color: #b45309;
+        }
+
+        .password-help.strong {
+            color: #047857;
+        }
+
         .register-link {
             text-align: center;
             margin-top: 25px;
@@ -191,7 +211,7 @@
                 </div>
             <?php endif; ?>
 
-            <form method="POST">
+            <form method="POST" id="registerForm">
                 <?php csrf_field(); ?>
 
                 <div class="form-group">
@@ -207,6 +227,13 @@
                 <div class="form-group" style="margin-top: 15px;">
                     <label for="password">Password</label>
                     <input type="password" id="password" name="password" class="modern-input" placeholder="Create a strong password" required>
+                    <div id="passwordHelp" class="password-help">
+                        Use at least 8 chars with uppercase, lowercase, number, and symbol.
+                    </div>
+                </div>
+
+                <div id="weakPasswordAlert" class="alert-box alert-warning" style="display:none;">
+                    <strong>Weak password:</strong> Please strengthen your password before submitting.
                 </div>
 
                 <button type="submit" class="btn-full">Sign Up</button>
@@ -219,4 +246,52 @@
     </div>
 
 </body>
+<script>
+    (function () {
+        var form = document.getElementById('registerForm');
+        var passwordInput = document.getElementById('password');
+        var passwordHelp = document.getElementById('passwordHelp');
+        var weakAlert = document.getElementById('weakPasswordAlert');
+
+        if (!form || !passwordInput || !passwordHelp || !weakAlert) {
+            return;
+        }
+
+        function isStrongPassword(value) {
+            if (!value || value.length < 8) return false;
+            var hasUpper = /[A-Z]/.test(value);
+            var hasLower = /[a-z]/.test(value);
+            var hasDigit = /[0-9]/.test(value);
+            var hasSymbol = /[^a-zA-Z0-9]/.test(value);
+            return hasUpper && hasLower && hasDigit && hasSymbol;
+        }
+
+        function updatePasswordState() {
+            var value = passwordInput.value || '';
+            if (value.length === 0) {
+                weakAlert.style.display = 'none';
+                passwordHelp.classList.remove('weak');
+                passwordHelp.classList.remove('strong');
+                return true;
+            }
+
+            var strong = isStrongPassword(value);
+            weakAlert.style.display = strong ? 'none' : 'block';
+            passwordHelp.classList.toggle('weak', !strong);
+            passwordHelp.classList.toggle('strong', strong);
+            return strong;
+        }
+
+        passwordInput.addEventListener('input', updatePasswordState);
+
+        form.addEventListener('submit', function (event) {
+            var strong = updatePasswordState();
+            if (!strong) {
+                event.preventDefault();
+                alert('Weak password detected. Please use at least 8 characters with uppercase, lowercase, number, and symbol.');
+                passwordInput.focus();
+            }
+        });
+    })();
+</script>
 </html>

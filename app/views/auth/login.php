@@ -149,6 +149,22 @@
             border-left: 4px solid #10b981;
         }
 
+        .alert-warning {
+            background-color: #fef3c7;
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .password-help {
+            margin-top: 8px;
+            font-size: 0.85em;
+            color: #64748b;
+        }
+
+        .password-help.weak {
+            color: #b45309;
+        }
+
         .register-link {
             text-align: center;
             margin-top: 25px;
@@ -240,7 +256,14 @@
 
                 <div class="form-group" style="margin-top: 15px;">
                     <label>Password</label>
-                    <input type="password" name="password" class="modern-input" placeholder="Enter your password" required>
+                    <input type="password" name="password" id="password" class="modern-input" placeholder="Enter your password" required>
+                    <div id="passwordHelp" class="password-help">
+                        Password strength check: at least 8 chars, upper, lower, number, symbol.
+                    </div>
+                </div>
+
+                <div id="weakPasswordAlert" class="alert-box alert-warning" style="display:none;">
+                    <strong>Warning:</strong> Password format looks weak. You can still log in if this is your current password.
                 </div>
 
                 <label class="remember-row">
@@ -262,4 +285,39 @@
     </div>
 
 </body>
+<script>
+    (function () {
+        var passwordInput = document.getElementById('password');
+        var passwordHelp = document.getElementById('passwordHelp');
+        var weakAlert = document.getElementById('weakPasswordAlert');
+
+        if (!passwordInput || !passwordHelp || !weakAlert) {
+            return;
+        }
+
+        function isStrongPassword(value) {
+            if (!value || value.length < 8) return false;
+            var hasUpper = /[A-Z]/.test(value);
+            var hasLower = /[a-z]/.test(value);
+            var hasDigit = /[0-9]/.test(value);
+            var hasSymbol = /[^a-zA-Z0-9]/.test(value);
+            return hasUpper && hasLower && hasDigit && hasSymbol;
+        }
+
+        function updatePasswordWarning() {
+            var value = passwordInput.value || '';
+            if (value.length === 0) {
+                weakAlert.style.display = 'none';
+                passwordHelp.classList.remove('weak');
+                return;
+            }
+
+            var strong = isStrongPassword(value);
+            weakAlert.style.display = strong ? 'none' : 'block';
+            passwordHelp.classList.toggle('weak', !strong);
+        }
+
+        passwordInput.addEventListener('input', updatePasswordWarning);
+    })();
+</script>
 </html>

@@ -33,6 +33,28 @@ class AchievementController {
         return in_array($level, $allowed, true) ? $level : 'Faculty';
     }
 
+    private function getEncouragementMessage($totalAchievements) {
+        $totalAchievements = (int) $totalAchievements;
+
+        if ($totalAchievements >= 10) {
+            return "Excellent work! You already have {$totalAchievements} achievements and an outstanding co-curricular profile.";
+        }
+
+        if ($totalAchievements >= 5) {
+            return "Well done! You already have {$totalAchievements} achievements. Keep up the momentum and aim for 10 achievements.";
+        }
+
+        if ($totalAchievements >= 3) {
+            return "Great job! You already have {$totalAchievements} achievements. Stay active and work towards your next milestone of 5 achievements.";
+        }
+
+        if ($totalAchievements > 0) {
+            return "Good start! You already have {$totalAchievements} achievement" . ($totalAchievements > 1 ? "s" : "") . ". Keep participating in competitions and activities to earn more achievements.";
+        }
+
+        return "Start joining activities and competitions to earn your first achievement.";
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -47,10 +69,44 @@ class AchievementController {
             return;
         }
 
-        $userID = $_SESSION['user_id'];
+        $userID = (int) $_SESSION['user_id'];
         $achievements = Achievement::getByUser($userID, $search, $sort, $status);
 
         require "../app/views/achievement/index.php";
+    }
+
+    public function summary() {
+        $this->checkLogin();
+
+        if ($this->isAdmin()) {
+            header("Location: index.php?url=admin/index");
+            exit();
+        }
+
+        $userID = (int) $_SESSION['user_id'];
+        $achievements = Achievement::getByUser($userID, null, 'dateReceived', 'approved');
+        $totalAchievements = is_array($achievements) ? count($achievements) : 0;
+
+        $levelCounts = [
+            'Faculty' => 0,
+            'University' => 0,
+            'National' => 0,
+            'International' => 0,
+        ];
+
+        if (is_array($achievements)) {
+            foreach ($achievements as $achievement) {
+                $level = trim((string) ($achievement['achievementLevel'] ?? 'Faculty'));
+                if (!isset($levelCounts[$level])) {
+                    $levelCounts[$level] = 0;
+                }
+                $levelCounts[$level]++;
+            }
+        }
+
+        $encouragementMessage = $this->getEncouragementMessage($totalAchievements);
+
+        require "../app/views/achievement/summary.php";
     }
 
     public function create() {
@@ -59,72 +115,97 @@ class AchievementController {
 
         $error = null;
 
+        if ($this->isAdmin()) {
+            $students = User::getAll();
+            $approvedEvents = Event::getApprovedAllWithUser();
+        } else {
+            $userID = (int) $_SESSION['user_id'];
+            $approvedEvents = Event::getApprovedByUser($userID);
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if (empty($_POST['title'])) {
+            $title = trim((string) ($_POST['title'] ?? ''));
+            if ($title === '') {
                 $error = "Achievement title is required.";
-            } else {
-                $achievementLevel = $this->normalizeAchievementLevel($_POST['achievementLevel'] ?? 'Faculty');
-                $targetUserID = $_SESSION['user_id'];
-                if ($this->isAdmin()) {
-                    $selection = User::resolveStudentSelectionForAdmin(
-                        $_POST['studentID'] ?? 0,
-                        $_POST['studentEmail'] ?? '',
-                        $_POST['studentId'] ?? ''
-                    );
-                    $targetUserID = (int) ($selection['userID'] ?? 0);
-                    if ($targetUserID <= 0) {
-                        $error = (string) ($selection['error'] ?? "Please select a valid student.");
-                    }
-                }
+            }
 
-                $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
-                $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
-                if ($error === null && $dateReceived === '') {
-                    $error = "Date received is required.";
-                }
+            $eventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
+            if ($error === null && $eventID <= 0) {
+                $error = "Please select an approved event.";
+            }
 
-                $evidencePath = null;
-                if ($error === null) {
-                    $upload = EvidenceUpload::uploadFromRequest('evidence_file');
-                    if ($upload['error'] !== null) {
-                        $error = $upload['error'];
-                    } else {
-                        $evidencePath = $upload['path'];
-                    }
+            $targetUserID = (int) $_SESSION['user_id'];
+            if ($this->isAdmin() && $error === null) {
+                $selection = User::resolveStudentSelectionForAdmin(
+                    $_POST['studentID'] ?? 0,
+                    $_POST['studentEmail'] ?? '',
+                    $_POST['studentId'] ?? ''
+                );
+                $targetUserID = (int) ($selection['userID'] ?? 0);
+                if ($targetUserID <= 0) {
+                    $error = (string) ($selection['error'] ?? "Please select a valid student.");
                 }
+            }
 
-                if ($error === null) {
-                    $status = $this->isAdmin() ? 'approved' : 'pending';
-                    $reviewedBy = $this->isAdmin() ? (int) $_SESSION['user_id'] : null;
-                    $reviewedAt = $this->isAdmin() ? date('Y-m-d H:i:s') : null;
-                    Achievement::create(
-                        $targetUserID,
-                        $_POST['title'],
-                        $_POST['category'],
-                        $achievementLevel,
-                        $dateReceived === '' ? null : $dateReceived,
-                        $_POST['description'],
-                        $status,
-                        $reviewedBy,
-                        null,
-                        $reviewedAt,
-                        $evidencePath
-                    );
-
-                    $_SESSION['success'] = $this->isAdmin()
-                        ? "Achievement record added and approved."
-                        : "Achievement record submitted for review.";
-                    header("Location: index.php?url=achievement/index");
-                    exit();
+            $event = null;
+            if ($error === null) {
+                $event = Event::findApprovedByIdForUser($eventID, $targetUserID);
+                if (!$event) {
+                    $error = "Selected event is not approved for this student.";
                 }
+            }
+
+            $achievementLevel = $this->normalizeAchievementLevel($_POST['achievementLevel'] ?? 'Faculty');
+            $category = trim((string) ($_POST['category'] ?? ''));
+            $description = trim((string) ($_POST['description'] ?? ''));
+
+            $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
+            $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
+            if ($error === null && $dateReceived === '') {
+                $error = "Date received is required.";
+            }
+
+            $evidencePath = null;
+            if ($error === null) {
+                $upload = EvidenceUpload::uploadFromRequest('evidence_file');
+                if ($upload['error'] !== null) {
+                    $error = $upload['error'];
+                } else {
+                    $evidencePath = $upload['path'];
+                }
+            }
+
+            if ($error === null) {
+                $status = $this->isAdmin() ? 'approved' : 'pending';
+                $reviewedBy = $this->isAdmin() ? (int) $_SESSION['user_id'] : null;
+                $reviewedAt = $this->isAdmin() ? date('Y-m-d H:i:s') : null;
+                Achievement::create(
+                    $targetUserID,
+                    (int) $eventID,
+                    $title,
+                    $category,
+                    $achievementLevel,
+                    $dateReceived === '' ? null : $dateReceived,
+                    $description,
+                    $status,
+                    $reviewedBy,
+                    null,
+                    $reviewedAt,
+                    $evidencePath
+                );
+
+                $_SESSION['success'] = $this->isAdmin()
+                    ? "Achievement record added and approved."
+                    : "Achievement record submitted for review.";
+                header("Location: index.php?url=achievement/index");
+                exit();
             }
         }
 
         if ($this->isAdmin()) {
-            $students = User::getAll();
             require "../app/views/admin/achievement_create.php";
             return;
         }
@@ -148,10 +229,11 @@ class AchievementController {
 
         if ($this->isAdmin()) {
             $achievement = Achievement::findById($id);
-            $students = User::getAll();
             if (!$achievement) {
                 $this->redirectWithError("Achievement record not found.");
             }
+            $student = User::findById((int) ($achievement['userID'] ?? 0));
+            $approvedEvents = Event::getApprovedByUser((int) ($achievement['userID'] ?? 0));
         } else {
             $achievement = Achievement::find($id, $userID);
             if (!$achievement) {
@@ -160,16 +242,34 @@ class AchievementController {
             if (($achievement['status'] ?? '') === 'approved') {
                 $this->redirectWithError("Approved achievement records can only be edited by admin.");
             }
+            $approvedEvents = Event::getApprovedByUser($userID);
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if (empty($_POST['title'])) {
+            $title = trim((string) ($_POST['title'] ?? ''));
+            if ($title === '') {
                 $error = "Achievement title is required.";
             }
+
+            $eventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
+            if ($error === null && $eventID <= 0) {
+                $error = "Please select an approved event.";
+            }
+
+            $targetUserID = $this->isAdmin() ? (int) ($achievement['userID'] ?? 0) : $userID;
+            if ($error === null) {
+                $event = Event::findApprovedByIdForUser($eventID, $targetUserID);
+                if (!$event) {
+                    $error = "Selected event is not approved for this student.";
+                }
+            }
+
             $achievementLevel = $this->normalizeAchievementLevel($_POST['achievementLevel'] ?? 'Faculty');
+            $category = trim((string) ($_POST['category'] ?? ''));
+            $description = trim((string) ($_POST['description'] ?? ''));
 
             $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
             $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
@@ -181,11 +281,12 @@ class AchievementController {
                 if ($this->isAdmin()) {
                     Achievement::updateById(
                         $id,
-                        $_POST['title'],
-                        $_POST['category'],
+                        (int) $eventID,
+                        $title,
+                        $category,
                         $achievementLevel,
                         $dateReceived === '' ? null : $dateReceived,
-                        $_POST['description']
+                        $description
                     );
                     if (isset($_POST['status'])) {
                         $status = (string) $_POST['status'];
@@ -201,11 +302,12 @@ class AchievementController {
                         Achievement::update(
                             $id,
                             $userID,
-                            $_POST['title'],
-                            $_POST['category'],
+                            (int) $eventID,
+                            $title,
+                            $category,
                             $achievementLevel,
                             $dateReceived === '' ? null : $dateReceived,
-                            $_POST['description'],
+                            $description,
                             $upload['path'],
                             $upload['uploaded']
                         );
@@ -242,13 +344,15 @@ class AchievementController {
         header('Content-Disposition: attachment; filename="my_achievement_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Title', 'Category', 'Achievement Level', 'Date Received', 'Description', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Club', 'Event', 'Title', 'Category', 'Achievement Level', 'Date Received', 'Description', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($achievements as $row) {
             $dateReceived = trim((string) ($row['dateReceived'] ?? ''));
             $dateReceived = ($dateReceived === '' || $dateReceived === '0000-00-00') ? '' : $dateReceived;
 
             fputcsv($output, [
+                $row['clubName'] ?? '',
+                $row['eventTitle'] ?? '',
                 $row['title'] ?? '',
                 $row['category'] ?? '',
                 $row['achievementLevel'] ?? '',
@@ -277,7 +381,7 @@ class AchievementController {
         header('Content-Disposition: attachment; filename="achievement_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Title', 'Category', 'Achievement Level', 'Date Received', 'Description', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event', 'Title', 'Category', 'Achievement Level', 'Date Received', 'Description', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($achievements as $row) {
             $dateReceived = trim((string) ($row['dateReceived'] ?? ''));
@@ -287,6 +391,8 @@ class AchievementController {
                 $row['userName'] ?? '',
                 $row['studentId'] ?? '',
                 $row['userEmail'] ?? '',
+                $row['clubName'] ?? '',
+                $row['eventTitle'] ?? '',
                 $row['title'] ?? '',
                 $row['category'] ?? '',
                 $row['achievementLevel'] ?? '',

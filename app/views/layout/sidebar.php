@@ -93,7 +93,7 @@
                 <div class="sidebar-link-list">
                     <a class="sidebar-link" href="index.php?url=merit/create">Add Merit Record</a>
                     <a class="sidebar-link" href="index.php?url=event/create">Add Event Record</a>
-                    <a class="sidebar-link" href="index.php?url=club/create">Add Club Record</a>
+                    <a class="sidebar-link" href="index.php?url=club/create">Join Club / Request Role</a>
                     <a class="sidebar-link" href="index.php?url=achievement/create">Add Achievement</a>
                     <a class="sidebar-link" href="index.php?url=certificate/myMerit">My Certificates</a>
                     <?php if ($isAdmin): ?>

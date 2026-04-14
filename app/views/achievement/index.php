@@ -181,13 +181,15 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search title, category, level, or description..."
+                        placeholder="Search title, event, club, category, level, or description..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'achievementID'; ?>
                     <select name="sort" class="input">
                         <option value="achievementID" <?= $currentSort === 'achievementID' ? 'selected' : '' ?>>Newest</option>
                         <option value="title" <?= $currentSort === 'title' ? 'selected' : '' ?>>Title</option>
+                        <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event</option>
+                        <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club</option>
                         <option value="category" <?= $currentSort === 'category' ? 'selected' : '' ?>>Category</option>
                         <option value="achievementLevel" <?= $currentSort === 'achievementLevel' ? 'selected' : '' ?>>Level</option>
                         <option value="dateReceived" <?= $currentSort === 'dateReceived' ? 'selected' : '' ?>>Date Received</option>
@@ -209,6 +211,8 @@
 
             <table class="co-records-table">
                 <tr>
+                    <th>Club</th>
+                    <th>Event</th>
                     <th>Title</th>
                     <th>Category</th>
                     <th>Level</th>
@@ -220,7 +224,7 @@
 
                 <?php if (empty($achievements)): ?>
                     <tr>
-                        <td colspan="7" class="muted">No achievement records found.</td>
+                        <td colspan="9" class="muted">No achievement records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -234,6 +238,8 @@
                     $isLocked = $status === 'approved';
                 ?>
                 <tr>
+                    <td><?= htmlspecialchars((string) ($a['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars((string) ($a['eventTitle'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($a['title'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($a['category'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><span class="chip"><?= htmlspecialchars(($a['achievementLevel'] ?? 'Faculty') ?: 'Faculty', ENT_QUOTES, 'UTF-8') ?></span></td>

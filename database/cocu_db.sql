@@ -30,6 +30,7 @@ SET time_zone = "+00:00";
 CREATE TABLE `achievements` (
   `achievementID` int(11) NOT NULL,
   `userID` int(11) NOT NULL,
+  `eventID` int(11) DEFAULT NULL,
   `title` varchar(150) NOT NULL,
   `category` varchar(100) DEFAULT NULL,
   `achievementLevel` varchar(30) DEFAULT 'Faculty',
@@ -47,8 +48,8 @@ CREATE TABLE `achievements` (
 -- Dumping data for table `achievements`
 --
 
-INSERT INTO `achievements` (`achievementID`, `userID`, `title`, `category`, `dateReceived`, `description`, `status`) VALUES
-(1, 1, 'CTF champion', 'IT', '2026-03-02', 'Yay! I did it!!!', 'approved');
+INSERT INTO `achievements` (`achievementID`, `userID`, `eventID`, `title`, `category`, `dateReceived`, `description`, `status`) VALUES
+(1, 1, 1, 'CTF champion', 'IT', '2026-03-02', 'Yay! I did it!!!', 'approved');
 
 -- --------------------------------------------------------
 
@@ -62,6 +63,7 @@ CREATE TABLE `clubs` (
   `clubName` varchar(150) NOT NULL,
   `role` varchar(100) DEFAULT NULL,
   `roleDescription` text DEFAULT NULL,
+  `request_type` enum('join','role_change') NOT NULL DEFAULT 'join',
   `startDate` date DEFAULT NULL,
   `endDate` date DEFAULT NULL,
   `status` enum('pending','approved','rejected') NOT NULL DEFAULT 'pending',
@@ -76,8 +78,30 @@ CREATE TABLE `clubs` (
 -- Dumping data for table `clubs`
 --
 
-INSERT INTO `clubs` (`clubID`, `userID`, `clubName`, `role`, `roleDescription`, `startDate`, `endDate`, `status`) VALUES
-(1, 1, 'Cybersecurity club', 'Member', 'I wish to work in cybersecurity field in the future\r\n', '2026-01-01', '2026-03-03', 'approved');
+INSERT INTO `clubs` (`clubID`, `userID`, `clubName`, `role`, `roleDescription`, `request_type`, `startDate`, `endDate`, `status`) VALUES
+(1, 1, 'Cybersecurity club', 'Member', 'I wish to work in cybersecurity field in the future\r\n', 'join', '2026-01-01', '2026-03-03', 'approved');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `club_catalog`
+--
+
+CREATE TABLE `club_catalog` (
+  `clubCatalogID` int(11) NOT NULL,
+  `clubName` varchar(150) NOT NULL,
+  `description` text DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_by` int(11) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `club_catalog`
+--
+
+INSERT INTO `club_catalog` (`clubCatalogID`, `clubName`, `description`, `is_active`, `created_by`) VALUES
+(1, 'Cybersecurity club', 'University cybersecurity activities and community involvement.', 1, 2);
 
 -- --------------------------------------------------------
 
@@ -88,9 +112,11 @@ INSERT INTO `clubs` (`clubID`, `userID`, `clubName`, `role`, `roleDescription`, 
 CREATE TABLE `events` (
   `eventID` int(11) NOT NULL,
   `userID` int(11) NOT NULL,
+  `clubCatalogID` int(11) DEFAULT NULL,
   `eventTitle` varchar(150) NOT NULL,
   `eventType` varchar(50) DEFAULT NULL,
   `eventDate` date NOT NULL,
+  `eventHours` decimal(6,2) NOT NULL DEFAULT 1.00,
   `location` varchar(150) DEFAULT NULL,
   `description` text DEFAULT NULL,
   `reflection` text DEFAULT NULL,
@@ -107,8 +133,8 @@ CREATE TABLE `events` (
 -- Dumping data for table `events`
 --
 
-INSERT INTO `events` (`eventID`, `userID`, `eventTitle`, `eventDate`, `location`, `description`, `created_at`, `status`) VALUES
-(1, 1, 'Campus Leadership Talk', '2026-03-03', 'Heritage Hall', 'Provide insights to the juniors that wish to be a successful leader in their team.', '2026-03-03 09:28:03', 'approved');
+INSERT INTO `events` (`eventID`, `userID`, `clubCatalogID`, `eventTitle`, `eventType`, `eventDate`, `eventHours`, `location`, `description`, `created_at`, `status`) VALUES
+(1, 1, 1, 'Campus Leadership Talk', 'Leadership', '2026-03-03', 2.00, 'Heritage Hall', 'Provide insights to the juniors that wish to be a successful leader in their team.', '2026-03-03 09:28:03', 'approved');
 
 -- --------------------------------------------------------
 
@@ -119,6 +145,7 @@ INSERT INTO `events` (`eventID`, `userID`, `eventTitle`, `eventDate`, `location`
 CREATE TABLE `merits` (
   `meritID` int(11) NOT NULL,
   `userID` int(11) NOT NULL,
+  `eventID` int(11) DEFAULT NULL,
   `activityName` varchar(150) NOT NULL,
   `hours` int(11) NOT NULL,
   `dateFrom` date DEFAULT NULL,
@@ -139,15 +166,15 @@ CREATE TABLE `merits` (
 -- Dumping data for table `merits`
 --
 
-INSERT INTO `merits` (`meritID`, `userID`, `activityName`, `hours`, `dateFrom`, `dateTo`, `status`) VALUES
-(1, 1, 'ABC', 2, '2026-03-02', '2026-03-02', 'approved'),
-(2, 1, 'DEF', 3, '2026-03-03', '2026-03-03', 'approved'),
-(3, 1, 'Volunteer Program', 2, '2026-03-01', '2026-03-03', 'approved'),
-(4, 3, 'Clean the beach', 2, '2026-03-03', '2026-03-03', 'approved'),
-(5, 3, 'Cleaning old folks home', 4, '2026-03-01', '2026-03-01', 'approved'),
-(6, 3, 'Blood donation campaign helper', 7, '0000-00-00', '0000-00-00', 'approved'),
-(7, 3, 'Become a MC for blood donation', 9, '2026-03-01', '2026-03-03', 'approved'),
-(8, 3, 'Donate old clothes to the orphanage', 1, '2026-02-11', '2026-02-11', 'approved');
+INSERT INTO `merits` (`meritID`, `userID`, `eventID`, `activityName`, `hours`, `dateFrom`, `dateTo`, `status`) VALUES
+(1, 1, 1, 'ABC', 2, '2026-03-02', '2026-03-02', 'approved'),
+(2, 1, NULL, 'DEF', 3, '2026-03-03', '2026-03-03', 'approved'),
+(3, 1, NULL, 'Volunteer Program', 2, '2026-03-01', '2026-03-03', 'approved'),
+(4, 3, NULL, 'Clean the beach', 2, '2026-03-03', '2026-03-03', 'approved'),
+(5, 3, NULL, 'Cleaning old folks home', 4, '2026-03-01', '2026-03-01', 'approved'),
+(6, 3, NULL, 'Blood donation campaign helper', 7, '0000-00-00', '0000-00-00', 'approved'),
+(7, 3, NULL, 'Become a MC for blood donation', 9, '2026-03-01', '2026-03-03', 'approved'),
+(8, 3, NULL, 'Donate old clothes to the orphanage', 1, '2026-02-11', '2026-02-11', 'approved');
 
 -- --------------------------------------------------------
 
@@ -218,6 +245,7 @@ INSERT INTO `users` (`userID`, `student_id`, `name`, `email`, `passwordHash`, `i
 ALTER TABLE `achievements`
   ADD PRIMARY KEY (`achievementID`),
   ADD KEY `userID` (`userID`),
+  ADD KEY `idx_achievements_eventID` (`eventID`),
   ADD KEY `reviewed_by` (`reviewed_by`),
   ADD KEY `status` (`status`);
 
@@ -227,8 +255,18 @@ ALTER TABLE `achievements`
 ALTER TABLE `clubs`
   ADD PRIMARY KEY (`clubID`),
   ADD KEY `userID` (`userID`),
+  ADD KEY `request_type` (`request_type`),
   ADD KEY `reviewed_by` (`reviewed_by`),
   ADD KEY `status` (`status`);
+
+--
+-- Indexes for table `club_catalog`
+--
+ALTER TABLE `club_catalog`
+  ADD PRIMARY KEY (`clubCatalogID`),
+  ADD UNIQUE KEY `uk_club_catalog_name` (`clubName`),
+  ADD KEY `idx_club_catalog_active` (`is_active`),
+  ADD KEY `idx_club_catalog_created_by` (`created_by`);
 
 --
 -- Indexes for table `events`
@@ -236,6 +274,7 @@ ALTER TABLE `clubs`
 ALTER TABLE `events`
   ADD PRIMARY KEY (`eventID`),
   ADD KEY `userID` (`userID`),
+  ADD KEY `idx_events_clubCatalogID` (`clubCatalogID`),
   ADD KEY `reviewed_by` (`reviewed_by`),
   ADD KEY `status` (`status`);
 
@@ -245,6 +284,7 @@ ALTER TABLE `events`
 ALTER TABLE `merits`
   ADD PRIMARY KEY (`meritID`),
   ADD KEY `userID` (`userID`),
+  ADD KEY `idx_merits_eventID` (`eventID`),
   ADD KEY `reviewed_by` (`reviewed_by`),
   ADD KEY `status` (`status`);
 
@@ -292,6 +332,12 @@ ALTER TABLE `clubs`
   MODIFY `clubID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
+-- AUTO_INCREMENT for table `club_catalog`
+--
+ALTER TABLE `club_catalog`
+  MODIFY `clubCatalogID` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+
+--
 -- AUTO_INCREMENT for table `events`
 --
 ALTER TABLE `events`
@@ -330,6 +376,7 @@ ALTER TABLE `users`
 --
 ALTER TABLE `achievements`
   ADD CONSTRAINT `achievements_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `users` (`userID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_achievements_event` FOREIGN KEY (`eventID`) REFERENCES `events` (`eventID`) ON DELETE SET NULL,
   ADD CONSTRAINT `achievements_ibfk_2` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`userID`) ON DELETE SET NULL;
 
 --
@@ -340,10 +387,17 @@ ALTER TABLE `clubs`
   ADD CONSTRAINT `clubs_ibfk_2` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`userID`) ON DELETE SET NULL;
 
 --
+-- Constraints for table `club_catalog`
+--
+ALTER TABLE `club_catalog`
+  ADD CONSTRAINT `fk_club_catalog_created_by` FOREIGN KEY (`created_by`) REFERENCES `users` (`userID`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `events`
 --
 ALTER TABLE `events`
   ADD CONSTRAINT `events_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `users` (`userID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_events_club_catalog` FOREIGN KEY (`clubCatalogID`) REFERENCES `club_catalog` (`clubCatalogID`) ON DELETE SET NULL,
   ADD CONSTRAINT `events_ibfk_2` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`userID`) ON DELETE SET NULL;
 
 --
@@ -351,6 +405,7 @@ ALTER TABLE `events`
 --
 ALTER TABLE `merits`
   ADD CONSTRAINT `merits_ibfk_1` FOREIGN KEY (`userID`) REFERENCES `users` (`userID`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_merits_event` FOREIGN KEY (`eventID`) REFERENCES `events` (`eventID`) ON DELETE SET NULL,
   ADD CONSTRAINT `merits_ibfk_2` FOREIGN KEY (`reviewed_by`) REFERENCES `users` (`userID`) ON DELETE SET NULL;
 
 --

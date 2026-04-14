@@ -2,6 +2,20 @@
 
 class AuthController {
 
+    private function isStrongPassword($password) {
+        $password = (string) $password;
+        if (strlen($password) < 8) {
+            return false;
+        }
+
+        $hasUpper = preg_match('/[A-Z]/', $password) === 1;
+        $hasLower = preg_match('/[a-z]/', $password) === 1;
+        $hasDigit = preg_match('/[0-9]/', $password) === 1;
+        $hasSymbol = preg_match('/[^a-zA-Z0-9]/', $password) === 1;
+
+        return $hasUpper && $hasLower && $hasDigit && $hasSymbol;
+    }
+
     public function login() {
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -64,6 +78,12 @@ class AuthController {
 
             if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 $error = "Please enter a valid email address.";
+                require "../app/views/auth/register.php";
+                return;
+            }
+
+            if (!$this->isStrongPassword($password)) {
+                $error = "Weak password. Use at least 8 characters with uppercase, lowercase, number, and symbol.";
                 require "../app/views/auth/register.php";
                 return;
             }
@@ -159,6 +179,12 @@ class AuthController {
 
             if ($password !== $confirm) {
                 $error = "Passwords do not match.";
+                require "../app/views/auth/reset.php";
+                return;
+            }
+
+            if (!$this->isStrongPassword($password)) {
+                $error = "Weak password. Use at least 8 characters with uppercase, lowercase, number, and symbol.";
                 require "../app/views/auth/reset.php";
                 return;
             }

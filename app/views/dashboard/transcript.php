@@ -12,6 +12,127 @@
     $periodToLabel = ($activityPeriodTo !== null && strtotime((string) $activityPeriodTo) !== false)
         ? date('d M Y', strtotime((string) $activityPeriodTo))
         : '-';
+
+    $displayDate = function ($value, $fallback = '-') {
+        $dateValue = trim((string) $value);
+        if ($dateValue === '' || $dateValue === '0000-00-00' || strtotime($dateValue) === false) {
+            return $fallback;
+        }
+        return date('d M Y', strtotime($dateValue));
+    };
+
+    $clubFlow = [];
+
+    $ensureClubNode = function ($clubName) use (&$clubFlow) {
+        $resolvedName = trim((string) $clubName);
+        if ($resolvedName === '') {
+            $resolvedName = 'Independent Activities';
+        }
+
+        $clubKey = strtolower($resolvedName);
+        if (!isset($clubFlow[$clubKey])) {
+            $clubFlow[$clubKey] = [
+                'clubName' => $resolvedName,
+                'memberships' => [],
+                'events' => [],
+                'unlinkedMerits' => [],
+                'unlinkedAchievements' => [],
+            ];
+        }
+
+        return $clubKey;
+    };
+
+    foreach ($approvedClubs as $row) {
+        $clubKey = $ensureClubNode($row['clubName'] ?? '');
+        $membership = [
+            'role' => trim((string) ($row['role'] ?? 'Member')) ?: 'Member',
+            'startDate' => trim((string) ($row['startDate'] ?? '')),
+            'endDate' => trim((string) ($row['endDate'] ?? '')),
+        ];
+
+        $membershipKey = strtolower($membership['role'] . '|' . $membership['startDate'] . '|' . $membership['endDate']);
+        $clubFlow[$clubKey]['memberships'][$membershipKey] = $membership;
+    }
+
+    $eventLookup = [];
+    foreach ($approvedEvents as $row) {
+        $clubKey = $ensureClubNode($row['clubName'] ?? '');
+        $eventID = (int) ($row['eventID'] ?? 0);
+        $eventKey = $eventID > 0
+            ? 'event-' . $eventID
+            : 'event-free-' . md5((string) (($row['eventTitle'] ?? '') . '|' . ($row['eventDate'] ?? '') . '|' . ($row['clubName'] ?? '')));
+
+        if (!isset($clubFlow[$clubKey]['events'][$eventKey])) {
+            $clubFlow[$clubKey]['events'][$eventKey] = [
+                'eventID' => $eventID,
+                'eventTitle' => trim((string) ($row['eventTitle'] ?? '')) ?: 'Untitled Event',
+                'eventType' => trim((string) ($row['eventType'] ?? '')),
+                'eventDate' => trim((string) ($row['eventDate'] ?? '')),
+                'eventHours' => (float) ($row['eventHours'] ?? 0),
+                'location' => trim((string) ($row['location'] ?? '')),
+                'merits' => [],
+                'achievements' => [],
+            ];
+        }
+
+        if ($eventID > 0) {
+            $eventLookup[$eventID] = ['clubKey' => $clubKey, 'eventKey' => $eventKey];
+        }
+    }
+
+    foreach ($approvedMerits as $row) {
+        $eventID = (int) ($row['eventID'] ?? 0);
+        $meritEntry = [
+            'activityName' => trim((string) ($row['activityName'] ?? '')) ?: 'Merit Activity',
+            'hours' => (float) ($row['hours'] ?? 0),
+            'dateFrom' => trim((string) ($row['dateFrom'] ?? '')),
+            'dateTo' => trim((string) ($row['dateTo'] ?? '')),
+        ];
+
+        if ($eventID > 0 && isset($eventLookup[$eventID])) {
+            $clubKey = $eventLookup[$eventID]['clubKey'];
+            $eventKey = $eventLookup[$eventID]['eventKey'];
+            $clubFlow[$clubKey]['events'][$eventKey]['merits'][] = $meritEntry;
+            continue;
+        }
+
+        $clubKey = $ensureClubNode($row['clubName'] ?? '');
+        $clubFlow[$clubKey]['unlinkedMerits'][] = $meritEntry;
+    }
+
+    foreach ($approvedAchievements as $row) {
+        $eventID = (int) ($row['eventID'] ?? 0);
+        $achievementEntry = [
+            'title' => trim((string) ($row['title'] ?? '')) ?: 'Achievement',
+            'category' => trim((string) ($row['category'] ?? '')),
+            'level' => trim((string) ($row['achievementLevel'] ?? '')),
+            'dateReceived' => trim((string) ($row['dateReceived'] ?? '')),
+            'description' => trim((string) ($row['description'] ?? '')),
+        ];
+
+        if ($eventID > 0 && isset($eventLookup[$eventID])) {
+            $clubKey = $eventLookup[$eventID]['clubKey'];
+            $eventKey = $eventLookup[$eventID]['eventKey'];
+            $clubFlow[$clubKey]['events'][$eventKey]['achievements'][] = $achievementEntry;
+            continue;
+        }
+
+        $clubKey = $ensureClubNode($row['clubName'] ?? '');
+        $clubFlow[$clubKey]['unlinkedAchievements'][] = $achievementEntry;
+    }
+
+    if (!empty($clubFlow)) {
+        uasort($clubFlow, function ($a, $b) {
+            if ($a['clubName'] === 'Independent Activities') {
+                return 1;
+            }
+            if ($b['clubName'] === 'Independent Activities') {
+                return -1;
+            }
+            return strcasecmp((string) $a['clubName'], (string) $b['clubName']);
+        });
+    }
 ?>
 
 <style>
@@ -171,6 +292,106 @@
         border-bottom: none;
     }
 
+    .transcript-flow {
+        margin-top: 14px;
+        display: grid;
+        gap: 12px;
+    }
+
+    .club-flow-card {
+        border: 1px solid #dbe3ee;
+        border-radius: 12px;
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .club-flow-head {
+        padding: 10px 12px;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f8fbff;
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: flex-start;
+        flex-wrap: wrap;
+    }
+
+    .club-flow-name {
+        margin: 0;
+        font-size: 1rem;
+        color: #0f172a;
+    }
+
+    .club-flow-meta {
+        margin: 4px 0 0;
+        color: #334155;
+        font-size: 0.86rem;
+    }
+
+    .club-flow-body {
+        padding: 12px;
+        display: grid;
+        gap: 10px;
+    }
+
+    .event-flow-card {
+        border: 1px solid #e2e8f0;
+        border-left: 4px solid #1d4ed8;
+        border-radius: 10px;
+        padding: 10px 11px;
+        background: #fcfdff;
+    }
+
+    .event-flow-title {
+        margin: 0;
+        font-size: 0.95rem;
+        color: #0f172a;
+    }
+
+    .event-flow-meta {
+        margin-top: 4px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .event-flow-chip {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        border: 1px solid #cbd5e1;
+        padding: 2px 8px;
+        font-size: 0.78rem;
+        color: #334155;
+        background: #ffffff;
+    }
+
+    .flow-subsection {
+        margin-top: 8px;
+    }
+
+    .flow-subtitle {
+        margin: 0 0 4px;
+        font-size: 0.82rem;
+        font-weight: 800;
+        color: #0f172a;
+    }
+
+    .flow-list {
+        margin: 0;
+        padding-left: 18px;
+        display: grid;
+        gap: 3px;
+        color: #1e293b;
+        font-size: 0.86rem;
+    }
+
+    .flow-empty {
+        margin: 0;
+        color: #64748b;
+        font-size: 0.84rem;
+    }
+
     .transcript-footer {
         margin-top: 18px;
         border-top: 2px solid rgba(16, 42, 106, 0.22);
@@ -298,107 +519,176 @@
                 </section>
 
                 <section class="transcript-section">
-                    <h2>Merit Records (Approved)</h2>
-                    <table class="transcript-table">
-                        <tr>
-                            <th>No.</th>
-                            <th>Activity</th>
-                            <th>Hours</th>
-                            <th>Date From</th>
-                            <th>Date To</th>
-                        </tr>
-                        <?php if (empty($approvedMerits)): ?>
-                            <tr><td colspan="5">No approved merit records.</td></tr>
+                    <h2>Co-Curricular Activity Flow (Approved)</h2>
+                    <div class="transcript-flow">
+                        <?php if (empty($clubFlow)): ?>
+                            <p class="flow-empty">No approved co-curricular records available.</p>
                         <?php else: ?>
-                            <?php foreach ($approvedMerits as $index => $row): ?>
-                                <tr>
-                                    <td><?= (int) ($index + 1) ?></td>
-                                    <td><?= htmlspecialchars($row['activityName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars((string) ($row['hours'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars(($row['dateFrom'] ?? '') !== '' ? (string) $row['dateFrom'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars(($row['dateTo'] ?? '') !== '' ? (string) $row['dateTo'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </table>
-                </section>
+                            <?php foreach ($clubFlow as $clubData): ?>
+                                <?php
+                                    $membershipRows = array_values($clubData['memberships']);
+                                    usort($membershipRows, function ($a, $b) {
+                                        return strcmp((string) ($a['startDate'] ?? ''), (string) ($b['startDate'] ?? ''));
+                                    });
 
-                <section class="transcript-section">
-                    <h2>Event Records (Approved)</h2>
-                    <table class="transcript-table">
-                        <tr>
-                            <th>No.</th>
-                            <th>Event</th>
-                            <th>Type</th>
-                            <th>Date</th>
-                            <th>Location</th>
-                        </tr>
-                        <?php if (empty($approvedEvents)): ?>
-                            <tr><td colspan="5">No approved event records.</td></tr>
-                        <?php else: ?>
-                            <?php foreach ($approvedEvents as $index => $row): ?>
-                                <tr>
-                                    <td><?= (int) ($index + 1) ?></td>
-                                    <td><?= htmlspecialchars($row['eventTitle'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars($row['eventType'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars(($row['eventDate'] ?? '') !== '' ? (string) $row['eventDate'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars($row['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </table>
-                </section>
+                                    $eventRows = array_values($clubData['events']);
+                                    usort($eventRows, function ($a, $b) {
+                                        $dateA = trim((string) ($a['eventDate'] ?? ''));
+                                        $dateB = trim((string) ($b['eventDate'] ?? ''));
+                                        $dateA = ($dateA === '' || $dateA === '0000-00-00') ? '0000-00-00' : $dateA;
+                                        $dateB = ($dateB === '' || $dateB === '0000-00-00') ? '0000-00-00' : $dateB;
 
-                <section class="transcript-section">
-                    <h2>Club Records (Approved)</h2>
-                    <table class="transcript-table">
-                        <tr>
-                            <th>No.</th>
-                            <th>Club</th>
-                            <th>Role</th>
-                            <th>Start Date</th>
-                            <th>End Date</th>
-                        </tr>
-                        <?php if (empty($approvedClubs)): ?>
-                            <tr><td colspan="5">No approved club records.</td></tr>
-                        <?php else: ?>
-                            <?php foreach ($approvedClubs as $index => $row): ?>
-                                <tr>
-                                    <td><?= (int) ($index + 1) ?></td>
-                                    <td><?= htmlspecialchars($row['clubName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars($row['role'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars(($row['startDate'] ?? '') !== '' ? (string) $row['startDate'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars(($row['endDate'] ?? '') !== '' ? (string) $row['endDate'] : 'Present', ENT_QUOTES, 'UTF-8') ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </table>
-                </section>
+                                        if ($dateA === $dateB) {
+                                            return strcasecmp((string) ($a['eventTitle'] ?? ''), (string) ($b['eventTitle'] ?? ''));
+                                        }
+                                        return strcmp($dateB, $dateA);
+                                    });
 
-                <section class="transcript-section">
-                    <h2>Achievement Records (Approved)</h2>
-                    <table class="transcript-table">
-                        <tr>
-                            <th>No.</th>
-                            <th>Title</th>
-                            <th>Category</th>
-                            <th>Level</th>
-                            <th>Date Received</th>
-                        </tr>
-                        <?php if (empty($approvedAchievements)): ?>
-                            <tr><td colspan="5">No approved achievement records.</td></tr>
-                        <?php else: ?>
-                            <?php foreach ($approvedAchievements as $index => $row): ?>
-                                <tr>
-                                    <td><?= (int) ($index + 1) ?></td>
-                                    <td><?= htmlspecialchars($row['title'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars($row['category'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars($row['achievementLevel'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                    <td><?= htmlspecialchars(($row['dateReceived'] ?? '') !== '' ? (string) $row['dateReceived'] : '-', ENT_QUOTES, 'UTF-8') ?></td>
-                                </tr>
+                                    $totalMeritsInClub = 0;
+                                    $totalAchievementsInClub = 0;
+                                    foreach ($eventRows as $eventRow) {
+                                        $totalMeritsInClub += count($eventRow['merits']);
+                                        $totalAchievementsInClub += count($eventRow['achievements']);
+                                    }
+                                    $totalMeritsInClub += count($clubData['unlinkedMerits']);
+                                    $totalAchievementsInClub += count($clubData['unlinkedAchievements']);
+                                ?>
+                                <article class="club-flow-card">
+                                    <header class="club-flow-head">
+                                        <div>
+                                            <h3 class="club-flow-name"><?= htmlspecialchars($clubData['clubName'], ENT_QUOTES, 'UTF-8') ?></h3>
+                                            <?php if (!empty($membershipRows)): ?>
+                                                <p class="club-flow-meta">
+                                                    Membership timeline:
+                                                    <?php
+                                                        $membershipTexts = [];
+                                                        foreach ($membershipRows as $membership) {
+                                                            $membershipTexts[] = ($membership['role'] ?? 'Member')
+                                                                . ' (' . $displayDate($membership['startDate'] ?? null)
+                                                                . ' to ' . $displayDate($membership['endDate'] ?? null, 'Present') . ')';
+                                                        }
+                                                        echo htmlspecialchars(implode('; ', $membershipTexts), ENT_QUOTES, 'UTF-8');
+                                                    ?>
+                                                </p>
+                                            <?php else: ?>
+                                                <p class="club-flow-meta">No direct membership timeline recorded for this club.</p>
+                                            <?php endif; ?>
+                                        </div>
+                                        <div class="transcript-badges">
+                                            <span class="transcript-chip"><?= count($eventRows) ?> event(s)</span>
+                                            <span class="transcript-chip"><?= (int) $totalMeritsInClub ?> merit record(s)</span>
+                                            <span class="transcript-chip"><?= (int) $totalAchievementsInClub ?> achievement(s)</span>
+                                        </div>
+                                    </header>
+                                    <div class="club-flow-body">
+                                        <?php if (empty($eventRows)): ?>
+                                            <p class="flow-empty">No approved events linked under this club yet.</p>
+                                        <?php else: ?>
+                                            <?php foreach ($eventRows as $eventRow): ?>
+                                                <?php
+                                                    $eventHours = (float) ($eventRow['eventHours'] ?? 0);
+                                                    $eventHoursText = fmod($eventHours, 1.0) === 0.0
+                                                        ? (string) ((int) $eventHours)
+                                                        : number_format($eventHours, 1);
+                                                ?>
+                                                <div class="event-flow-card">
+                                                    <h4 class="event-flow-title">
+                                                        <?= htmlspecialchars($displayDate($eventRow['eventDate'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                        - <?= htmlspecialchars($eventRow['eventTitle'] ?? 'Untitled Event', ENT_QUOTES, 'UTF-8') ?>
+                                                    </h4>
+                                                    <div class="event-flow-meta">
+                                                        <span class="event-flow-chip">Type: <?= htmlspecialchars(($eventRow['eventType'] ?? '') !== '' ? (string) $eventRow['eventType'] : '-', ENT_QUOTES, 'UTF-8') ?></span>
+                                                        <span class="event-flow-chip">Event Merit Hours: <?= htmlspecialchars($eventHoursText, ENT_QUOTES, 'UTF-8') ?>h</span>
+                                                        <span class="event-flow-chip">Location: <?= htmlspecialchars(($eventRow['location'] ?? '') !== '' ? (string) $eventRow['location'] : '-', ENT_QUOTES, 'UTF-8') ?></span>
+                                                    </div>
+
+                                                    <div class="flow-subsection">
+                                                        <p class="flow-subtitle">Merit Submission(s)</p>
+                                                        <?php if (empty($eventRow['merits'])): ?>
+                                                            <p class="flow-empty">No approved merit submission linked to this event.</p>
+                                                        <?php else: ?>
+                                                            <ul class="flow-list">
+                                                                <?php foreach ($eventRow['merits'] as $meritRow): ?>
+                                                                    <?php
+                                                                        $meritHours = (float) ($meritRow['hours'] ?? 0);
+                                                                        $meritHoursText = fmod($meritHours, 1.0) === 0.0
+                                                                            ? (string) ((int) $meritHours)
+                                                                            : number_format($meritHours, 1);
+                                                                    ?>
+                                                                    <li>
+                                                                        <?= htmlspecialchars($meritRow['activityName'] ?? 'Merit Activity', ENT_QUOTES, 'UTF-8') ?>
+                                                                        (<?= htmlspecialchars($meritHoursText, ENT_QUOTES, 'UTF-8') ?>h)
+                                                                        - <?= htmlspecialchars($displayDate($meritRow['dateFrom'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                                        to <?= htmlspecialchars($displayDate($meritRow['dateTo'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                                    </li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
+                                                        <?php endif; ?>
+                                                    </div>
+
+                                                    <div class="flow-subsection">
+                                                        <p class="flow-subtitle">Achievement(s)</p>
+                                                        <?php if (empty($eventRow['achievements'])): ?>
+                                                            <p class="flow-empty">No approved achievement linked to this event.</p>
+                                                        <?php else: ?>
+                                                            <ul class="flow-list">
+                                                                <?php foreach ($eventRow['achievements'] as $achievementRow): ?>
+                                                                    <li>
+                                                                        <?= htmlspecialchars($achievementRow['title'] ?? 'Achievement', ENT_QUOTES, 'UTF-8') ?>
+                                                                        [<?= htmlspecialchars(($achievementRow['level'] ?? '') !== '' ? (string) $achievementRow['level'] : '-', ENT_QUOTES, 'UTF-8') ?>]
+                                                                        - <?= htmlspecialchars(($achievementRow['category'] ?? '') !== '' ? (string) $achievementRow['category'] : '-', ENT_QUOTES, 'UTF-8') ?>
+                                                                        - <?= htmlspecialchars($displayDate($achievementRow['dateReceived'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                                    </li>
+                                                                <?php endforeach; ?>
+                                                            </ul>
+                                                        <?php endif; ?>
+                                                    </div>
+                                                </div>
+                                            <?php endforeach; ?>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($clubData['unlinkedMerits'])): ?>
+                                            <div class="flow-subsection">
+                                                <p class="flow-subtitle">Unlinked Merit Submission(s)</p>
+                                                <ul class="flow-list">
+                                                    <?php foreach ($clubData['unlinkedMerits'] as $meritRow): ?>
+                                                        <?php
+                                                            $meritHours = (float) ($meritRow['hours'] ?? 0);
+                                                            $meritHoursText = fmod($meritHours, 1.0) === 0.0
+                                                                ? (string) ((int) $meritHours)
+                                                                : number_format($meritHours, 1);
+                                                        ?>
+                                                        <li>
+                                                            <?= htmlspecialchars($meritRow['activityName'] ?? 'Merit Activity', ENT_QUOTES, 'UTF-8') ?>
+                                                            (<?= htmlspecialchars($meritHoursText, ENT_QUOTES, 'UTF-8') ?>h)
+                                                            - <?= htmlspecialchars($displayDate($meritRow['dateFrom'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                            to <?= htmlspecialchars($displayDate($meritRow['dateTo'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php if (!empty($clubData['unlinkedAchievements'])): ?>
+                                            <div class="flow-subsection">
+                                                <p class="flow-subtitle">Unlinked Achievement(s)</p>
+                                                <ul class="flow-list">
+                                                    <?php foreach ($clubData['unlinkedAchievements'] as $achievementRow): ?>
+                                                        <li>
+                                                            <?= htmlspecialchars($achievementRow['title'] ?? 'Achievement', ENT_QUOTES, 'UTF-8') ?>
+                                                            [<?= htmlspecialchars(($achievementRow['level'] ?? '') !== '' ? (string) $achievementRow['level'] : '-', ENT_QUOTES, 'UTF-8') ?>]
+                                                            - <?= htmlspecialchars(($achievementRow['category'] ?? '') !== '' ? (string) $achievementRow['category'] : '-', ENT_QUOTES, 'UTF-8') ?>
+                                                            - <?= htmlspecialchars($displayDate($achievementRow['dateReceived'] ?? null), ENT_QUOTES, 'UTF-8') ?>
+                                                        </li>
+                                                    <?php endforeach; ?>
+                                                </ul>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                </article>
                             <?php endforeach; ?>
                         <?php endif; ?>
-                    </table>
+                    </div>
                 </section>
 
                 <section class="transcript-footer">

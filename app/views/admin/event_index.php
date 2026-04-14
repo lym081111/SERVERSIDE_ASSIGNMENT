@@ -77,7 +77,7 @@
                     type="text"
                     name="search"
                     class="input"
-                    placeholder="Search student, ID, email, title, type, location, reflection, or date..."
+                    placeholder="Search student, ID, email, club, title, type, hours, location, reflection, or date..."
                     value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                 <?php $currentSort = $_GET['sort'] ?? 'eventID'; ?>
@@ -85,9 +85,11 @@
                     <option value="eventID" <?= $currentSort === 'eventID' ? 'selected' : '' ?>>Newest</option>
                     <option value="student" <?= $currentSort === 'student' ? 'selected' : '' ?>>Student Name</option>
                     <option value="student_id" <?= $currentSort === 'student_id' ? 'selected' : '' ?>>Student ID</option>
+                    <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club</option>
                     <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event Title</option>
                     <option value="eventType" <?= $currentSort === 'eventType' ? 'selected' : '' ?>>Event Type</option>
                     <option value="eventDate" <?= $currentSort === 'eventDate' ? 'selected' : '' ?>>Event Date</option>
+                    <option value="eventHours" <?= $currentSort === 'eventHours' ? 'selected' : '' ?>>Event Hours</option>
                     <option value="location" <?= $currentSort === 'location' ? 'selected' : '' ?>>Location</option>
                     <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
                 </select>
@@ -117,9 +119,11 @@
                     <th>Student</th>
                     <th>Student ID</th>
                     <th>Email</th>
+                    <th>Club</th>
                     <th>Event</th>
                     <th>Type</th>
                     <th>Date</th>
+                    <th>Hours</th>
                     <th>Location</th>
                     <th>Description</th>
                     <th>Reflection</th>
@@ -130,7 +134,7 @@
                 </tr>
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="13" class="muted">No event records found.</td>
+                        <td colspan="15" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($events as $e): ?>
@@ -143,9 +147,11 @@
                         <td><?= htmlspecialchars($e['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['userEmail'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) ($e['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['eventTitle'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars(($e['eventType'] ?? 'General') ?: 'General', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['eventDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) ($e['eventHours'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['reflection'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>

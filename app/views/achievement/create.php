@@ -24,18 +24,24 @@
     <div class="page-header">
         <div>
             <h2 style="margin:0;">Add New Achievement</h2>
-            <div class="muted" style="margin-top:6px;">Record awards, competition results, and recognition.</div>
+            <div class="muted" style="margin-top:6px;">Record achievement results under an approved event.</div>
         </div>
         <div class="page-actions">
             <a class="btn btn-secondary" href="index.php?url=achievement/index">Back</a>
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
     <?php endif; ?>
+
+    <?php if (empty($approvedEvents)): ?>
+        <div class="card">
+            <div class="muted">No approved events available yet. Get an event approved first, then add achievement.</div>
+        </div>
+    <?php else: ?>
 
     <div class="card">
 
@@ -44,8 +50,20 @@
 
             <div class="form-grid">
                 <div>
+                    <label class="label">Approved Event</label>
+                    <select class="input" name="eventID" required>
+                        <option value="">Select event</option>
+                        <?php foreach ($approvedEvents as $ev): ?>
+                            <option value="<?= htmlspecialchars((string) ($ev['eventID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) ($ev['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($ev['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars((string) ($ev['eventDate'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div>
                     <label class="label">Title</label>
-                    <input class="input" type="text" name="title" placeholder="e.g. Debate Champion" required>
+                    <input class="input" type="text" name="title" placeholder="e.g. 1st Prize" required>
                 </div>
 
                 <div>
@@ -71,7 +89,7 @@
 
             <div style="margin-top:14px;">
                 <label class="label">Description</label>
-                <textarea class="input" name="description" rows="4" placeholder="Add notes or results."></textarea>
+                <textarea class="input" name="description" rows="4" placeholder="Add notes or result details."></textarea>
             </div>
 
             <div class="form-actions">
@@ -87,6 +105,8 @@
         </form>
 
     </div>
+
+    <?php endif; ?>
 
         </div>
     </div>

@@ -66,7 +66,7 @@ class MeritController {
             return;
         }
 
-        $userID = $_SESSION['user_id'];
+        $userID = (int) $_SESSION['user_id'];
         $merits = Merit::getByUser($userID, $search, $sort, $status);
         $certificateCount = MeritCertificate::countByUser($userID);
         $latestCertificate = MeritCertificate::getLatestByUser($userID);
@@ -81,52 +81,60 @@ class MeritController {
 
         $error = null;
 
+        if ($this->isAdmin()) {
+            $students = User::getAll();
+            $approvedEvents = Event::getApprovedAllWithUser();
+        } else {
+            $userID = (int) $_SESSION['user_id'];
+            $approvedEvents = Event::getApprovedByUser($userID);
+        }
+
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if (empty($_POST['activityName']) || empty($_POST['hours'])) {
-                $error = "Activity name and hours are required.";
-            } elseif ($_POST['hours'] <= 0) {
-                $error = "Hours must be greater than 0.";
-            } else {
+            $eventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
+            if ($eventID <= 0) {
+                $error = "Please select an approved event.";
+            }
 
-                $targetUserID = $_SESSION['user_id'];
-                if ($this->isAdmin()) {
-                    $selection = User::resolveStudentSelectionForAdmin(
-                        $_POST['studentID'] ?? 0,
-                        $_POST['studentEmail'] ?? '',
-                        $_POST['studentId'] ?? ''
-                    );
-                    $targetUserID = (int) ($selection['userID'] ?? 0);
-                    if ($targetUserID <= 0) {
-                        $error = (string) ($selection['error'] ?? "Please select a valid student.");
-                    }
+            $targetUserID = (int) $_SESSION['user_id'];
+            if ($this->isAdmin() && $error === null) {
+                $selection = User::resolveStudentSelectionForAdmin(
+                    $_POST['studentID'] ?? 0,
+                    $_POST['studentEmail'] ?? '',
+                    $_POST['studentId'] ?? ''
+                );
+                $targetUserID = (int) ($selection['userID'] ?? 0);
+                if ($targetUserID <= 0) {
+                    $error = (string) ($selection['error'] ?? "Please select a valid student.");
                 }
+            }
 
-                $dateFrom = trim((string) ($_POST['dateFrom'] ?? ''));
-                $dateTo = trim((string) ($_POST['dateTo'] ?? ''));
-                $dateFrom = ($dateFrom === '' || $dateFrom === '0000-00-00') ? '' : $dateFrom;
-                $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
-                if ($error === null && $dateFrom === '') {
-                    $error = "Date From is required.";
+            $event = null;
+            if ($error === null) {
+                $event = Event::findApprovedByIdForUser($eventID, $targetUserID);
+                if (!$event) {
+                    $error = "Selected event is not approved for this student.";
                 }
-                if ($error === null && $dateTo === '') {
-                    // One-day merit activities can leave Date To empty.
-                    $dateTo = $dateFrom;
-                }
-                if ($error === null && $dateTo < $dateFrom) {
-                    $error = "Date To must be on or after Date From.";
-                }
+            }
 
-                $evidencePath = null;
-                if ($error === null) {
-                    $upload = EvidenceUpload::uploadFromRequest('evidence_file');
-                    if ($upload['error'] !== null) {
-                        $error = $upload['error'];
-                    } else {
-                        $evidencePath = $upload['path'];
-                    }
+            $evidencePath = null;
+            if ($error === null) {
+                $upload = EvidenceUpload::uploadFromRequest('evidence_file');
+                if ($upload['error'] !== null) {
+                    $error = $upload['error'];
+                } else {
+                    $evidencePath = $upload['path'];
+                }
+            }
+
+            if ($error === null && $event !== null) {
+                $activityName = trim((string) ($event['eventTitle'] ?? ''));
+                $hours = isset($event['eventHours']) ? (float) $event['eventHours'] : 0.0;
+                $eventDate = trim((string) ($event['eventDate'] ?? ''));
+                if ($activityName === '' || $hours <= 0 || $eventDate === '' || $eventDate === '0000-00-00') {
+                    $error = "Selected event is missing required details (title/date/hours).";
                 }
 
                 if ($error === null) {
@@ -135,10 +143,11 @@ class MeritController {
                     $reviewedAt = $this->isAdmin() ? date('Y-m-d H:i:s') : null;
                     $created = Merit::create(
                         $targetUserID,
-                        $_POST['activityName'],
-                        $_POST['hours'],
-                        $dateFrom === '' ? null : $dateFrom,
-                        $dateTo === '' ? null : $dateTo,
+                        (int) $eventID,
+                        $activityName,
+                        $hours,
+                        $eventDate,
+                        $eventDate,
                         $status,
                         $reviewedBy,
                         null,
@@ -169,7 +178,6 @@ class MeritController {
         }
 
         if ($this->isAdmin()) {
-            $students = User::getAll();
             require "../app/views/admin/merit_create.php";
             return;
         }
@@ -193,11 +201,12 @@ class MeritController {
 
         if ($this->isAdmin()) {
             $merit = Merit::findById($id);
-            $students = User::getAll();
-            $statusLogs = Merit::getStatusLogsByMerit($id);
             if (!$merit) {
                 $this->redirectWithError("Merit record not found.");
             }
+            $student = User::findById((int) ($merit['userID'] ?? 0));
+            $approvedEvents = Event::getApprovedByUser((int) ($merit['userID'] ?? 0));
+            $statusLogs = Merit::getStatusLogsByMerit($id);
         } else {
             $merit = Merit::find($id, $userID);
             if (!$merit) {
@@ -206,88 +215,93 @@ class MeritController {
             if (($merit['status'] ?? '') === 'approved') {
                 $this->redirectWithError("Approved merit records can only be edited by admin.");
             }
+            $approvedEvents = Event::getApprovedByUser($userID);
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
 
-            if (empty($_POST['activityName']) || empty($_POST['hours'])) {
-                $error = "Activity name and hours are required.";
-            } elseif ($_POST['hours'] <= 0) {
-                $error = "Hours must be greater than 0.";
+            $eventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
+            if ($eventID <= 0) {
+                $error = "Please select an approved event.";
             }
 
-            $dateFrom = trim((string) ($_POST['dateFrom'] ?? ''));
-            $dateTo = trim((string) ($_POST['dateTo'] ?? ''));
-            $dateFrom = ($dateFrom === '' || $dateFrom === '0000-00-00') ? '' : $dateFrom;
-            $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
-            if ($error === null && $dateFrom === '') {
-                $error = "Date From is required.";
-            }
-            if ($error === null && $dateTo === '') {
-                // One-day merit activities can leave Date To empty.
-                $dateTo = $dateFrom;
-            }
-            if ($error === null && $dateTo < $dateFrom) {
-                $error = "Date To must be on or after Date From.";
-            }
-
+            $targetUserID = $this->isAdmin() ? (int) ($merit['userID'] ?? 0) : $userID;
+            $event = null;
             if ($error === null) {
-                if ($this->isAdmin()) {
-                    Merit::updateById(
-                        $id,
-                        $_POST['activityName'],
-                        $_POST['hours'],
-                        $dateFrom === '' ? null : $dateFrom,
-                        $dateTo === '' ? null : $dateTo
-                    );
-                    if (isset($_POST['status'])) {
-                        $status = (string) $_POST['status'];
-                        $note = trim((string) ($_POST['review_note'] ?? ''));
-                        Merit::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note, 'admin_edit');
-                    }
-                    $updatedMerit = Merit::findById($id);
-                    $successMessage = "Merit record updated.";
-                    if ($updatedMerit && ($updatedMerit['status'] ?? '') === 'approved') {
-                        $newCertificates = MeritCertificate::issueEligibleForUser(
-                            (int) $updatedMerit['userID'],
-                            (int) $_SESSION['user_id'],
-                            (int) $id
-                        );
-                        $successMessage = $this->appendCertificateMessage($successMessage, $newCertificates);
-                    }
-                    $_SESSION['success'] = $successMessage;
-                } else {
-                    $appealNote = trim((string) ($_POST['appeal_note'] ?? ''));
-                    $upload = EvidenceUpload::uploadFromRequest('evidence_file');
-                    if ($upload['error'] !== null) {
-                        $error = $upload['error'];
-                    } else {
-                        $updated = Merit::update(
-                            $id,
-                            $userID,
-                            $_POST['activityName'],
-                            $_POST['hours'],
-                            $dateFrom === '' ? null : $dateFrom,
-                            $dateTo === '' ? null : $dateTo,
-                            $upload['path'],
-                            $upload['uploaded'],
-                            $appealNote
-                        );
-                        if (!$updated) {
-                            $error = "Unable to update record. It may no longer be editable.";
-                        } elseif (($merit['status'] ?? '') === 'rejected') {
-                            $_SESSION['success'] = "Appeal submitted and merit record resubmitted for admin review.";
-                        } else {
-                            $_SESSION['success'] = "Merit record updated and resubmitted for review.";
-                        }
-                    }
+                $event = Event::findApprovedByIdForUser($eventID, $targetUserID);
+                if (!$event) {
+                    $error = "Selected event is not approved for this student.";
+                }
+            }
+
+            if ($error === null && $event !== null) {
+                $activityName = trim((string) ($event['eventTitle'] ?? ''));
+                $hours = isset($event['eventHours']) ? (float) $event['eventHours'] : 0.0;
+                $eventDate = trim((string) ($event['eventDate'] ?? ''));
+                if ($activityName === '' || $hours <= 0 || $eventDate === '' || $eventDate === '0000-00-00') {
+                    $error = "Selected event is missing required details (title/date/hours).";
                 }
 
                 if ($error === null) {
-                    header("Location: index.php?url=merit/index");
-                    exit();
+                    if ($this->isAdmin()) {
+                        Merit::updateById(
+                            $id,
+                            (int) $eventID,
+                            $activityName,
+                            $hours,
+                            $eventDate,
+                            $eventDate
+                        );
+                        if (isset($_POST['status'])) {
+                            $status = (string) $_POST['status'];
+                            $note = trim((string) ($_POST['review_note'] ?? ''));
+                            Merit::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note, 'admin_edit');
+                        }
+                        $updatedMerit = Merit::findById($id);
+                        $successMessage = "Merit record updated.";
+                        if ($updatedMerit && ($updatedMerit['status'] ?? '') === 'approved') {
+                            $newCertificates = MeritCertificate::issueEligibleForUser(
+                                (int) $updatedMerit['userID'],
+                                (int) $_SESSION['user_id'],
+                                (int) $id
+                            );
+                            $successMessage = $this->appendCertificateMessage($successMessage, $newCertificates);
+                        }
+                        $_SESSION['success'] = $successMessage;
+                    } else {
+                        $appealNote = trim((string) ($_POST['appeal_note'] ?? ''));
+                        $upload = EvidenceUpload::uploadFromRequest('evidence_file');
+                        if ($upload['error'] !== null) {
+                            $error = $upload['error'];
+                        } else {
+                            $updated = Merit::update(
+                                $id,
+                                $userID,
+                                (int) $eventID,
+                                $activityName,
+                                $hours,
+                                $eventDate,
+                                $eventDate,
+                                $upload['path'],
+                                $upload['uploaded'],
+                                $appealNote
+                            );
+                            if (!$updated) {
+                                $error = "Unable to update record. It may no longer be editable.";
+                            } elseif (($merit['status'] ?? '') === 'rejected') {
+                                $_SESSION['success'] = "Appeal submitted and merit record resubmitted for admin review.";
+                            } else {
+                                $_SESSION['success'] = "Merit record updated and resubmitted for review.";
+                            }
+                        }
+                    }
+
+                    if ($error === null) {
+                        header("Location: index.php?url=merit/index");
+                        exit();
+                    }
                 }
             }
         }
@@ -314,7 +328,7 @@ class MeritController {
         header('Content-Disposition: attachment; filename="my_merit_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Activity', 'Hours', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Club', 'Event', 'Activity', 'Hours', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($merits as $row) {
             $dateFrom = trim((string) ($row['dateFrom'] ?? ''));
@@ -323,6 +337,8 @@ class MeritController {
             $dateTo = ($dateTo === '' || $dateTo === '0000-00-00') ? '' : $dateTo;
 
             fputcsv($output, [
+                $row['clubName'] ?? '',
+                $row['eventTitle'] ?? '',
                 $row['activityName'] ?? '',
                 $row['hours'] ?? '',
                 $dateFrom,
@@ -350,7 +366,7 @@ class MeritController {
         header('Content-Disposition: attachment; filename="merit_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Activity', 'Hours', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event', 'Activity', 'Hours', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($merits as $row) {
             $dateFrom = trim((string) ($row['dateFrom'] ?? ''));
@@ -362,6 +378,8 @@ class MeritController {
                 $row['userName'] ?? '',
                 $row['studentId'] ?? '',
                 $row['userEmail'] ?? '',
+                $row['clubName'] ?? '',
+                $row['eventTitle'] ?? '',
                 $row['activityName'] ?? '',
                 $row['hours'] ?? '',
                 $dateFrom,

@@ -36,6 +36,8 @@
         $highestRoleWeight = 0;
         $journeyEntries = [];
         $recentThreshold = date('Y-m-d', strtotime('-30 days'));
+        $uniqueApprovedClubs = [];
+        $uniqueActiveClubs = [];
 
         if (is_array($clubs)) {
             foreach ($clubs as $row) {
@@ -54,6 +56,19 @@
                 $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '' : $endDate;
                 if ($endDate === '') {
                     $activeCount++;
+                }
+
+                $statusValue = strtolower(trim((string) ($row['status'] ?? 'pending')));
+                $clubName = trim((string) ($row['clubName'] ?? ''));
+                if ($statusValue === 'approved' && $clubName !== '') {
+                    $uniqueApprovedClubs[strtolower($clubName)] = true;
+                }
+                if (
+                    $statusValue === 'approved'
+                    && $clubName !== ''
+                    && ($endDate === '' || $endDate >= date('Y-m-d'))
+                ) {
+                    $uniqueActiveClubs[strtolower($clubName)] = true;
                 }
 
                 $role = trim((string) ($row['role'] ?? ''));
@@ -98,7 +113,6 @@
                     }
                 }
 
-                $statusValue = (string) ($row['status'] ?? 'pending');
                 if ($statusValue === 'approved') {
                     $approvedCount++;
                 } elseif ($statusValue === 'rejected') {
@@ -109,6 +123,8 @@
             }
         }
 
+        $totalUniqueApprovedClubs = count($uniqueApprovedClubs);
+        $activeUniqueApprovedClubs = count($uniqueActiveClubs);
         $roleCount = count($roles);
         usort($journeyEntries, function ($a, $b) {
             return strcmp((string) ($b['startDate'] ?? ''), (string) ($a['startDate'] ?? ''));
@@ -118,20 +134,20 @@
         $milestones = [3, 5, 10, 20];
         $nextMilestone = null;
         foreach ($milestones as $goal) {
-            if ($totalRecords < $goal) {
+            if ($totalUniqueApprovedClubs < $goal) {
                 $nextMilestone = $goal;
                 break;
             }
         }
         $milestoneLabel = $nextMilestone ? $nextMilestone . " clubs" : "Goal complete";
-        $milestoneProgress = $nextMilestone ? min(100, (int) round(($totalRecords / $nextMilestone) * 100)) : 100;
+        $milestoneProgress = $nextMilestone ? min(100, (int) round(($totalUniqueApprovedClubs / $nextMilestone) * 100)) : 100;
     ?>
 
     <div class="kpi-grid">
         <div class="kpi-card">
             <div class="kpi-label">Total Clubs</div>
-            <div class="kpi-value"><?= (int) $totalRecords ?></div>
-            <div class="kpi-sub">All records</div>
+            <div class="kpi-value"><?= (int) $totalUniqueApprovedClubs ?></div>
+            <div class="kpi-sub">Unique approved clubs</div>
         </div>
 
         <div class="kpi-card">
@@ -142,8 +158,8 @@
 
         <div class="kpi-card">
             <div class="kpi-label">Active Memberships</div>
-            <div class="kpi-value"><?= (int) $activeCount ?></div>
-            <div class="kpi-sub">No end date set</div>
+            <div class="kpi-value"><?= (int) $activeUniqueApprovedClubs ?></div>
+            <div class="kpi-sub">Approved and not ended</div>
         </div>
 
         <div class="kpi-card">
@@ -161,11 +177,12 @@
 
     <div class="page-header">
         <div>
-            <h2 style="margin:0;">My Club Records</h2>
-            <div class="muted" style="margin-top:6px;">Track your club memberships and roles.</div>
+            <h2 style="margin:0;">My Club Requests & Memberships</h2>
+            <div class="muted" style="margin-top:6px;">Submit join or role-change requests and track approval status.</div>
         </div>
         <div class="page-actions">
-            <a href="index.php?url=club/create" class="btn">+ Add Club</a>
+            <a href="index.php?url=club/create" class="btn">+ Join / Request Role</a>
+            <a href="index.php?url=club/timeline" class="btn btn-secondary">View Timeline</a>
             <a href="index.php?url=club/exportSelf" class="btn btn-secondary no-print">Export my CSV</a>
         </div>
     </div>
@@ -192,7 +209,7 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search club name, role, or role description..."
+                        placeholder="Search club, role, request type, or note..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'clubID'; ?>
@@ -200,6 +217,7 @@
                         <option value="clubID" <?= $currentSort === 'clubID' ? 'selected' : '' ?>>Newest</option>
                         <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club Name</option>
                         <option value="role" <?= $currentSort === 'role' ? 'selected' : '' ?>>Role</option>
+                        <option value="request_type" <?= $currentSort === 'request_type' ? 'selected' : '' ?>>Request Type</option>
                         <option value="startDate" <?= $currentSort === 'startDate' ? 'selected' : '' ?>>Start Date</option>
                         <option value="endDate" <?= $currentSort === 'endDate' ? 'selected' : '' ?>>End Date</option>
                         <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
@@ -221,6 +239,7 @@
             <table class="co-records-table">
                 <tr>
                     <th>Club Name</th>
+                    <th>Request Type</th>
                     <th>Role</th>
                     <th>Role Description</th>
                     <th>Start Date</th>
@@ -231,7 +250,7 @@
 
                 <?php if (empty($clubs)): ?>
                     <tr>
-                        <td colspan="7" class="muted">No club records found.</td>
+                        <td colspan="8" class="muted">No club records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -242,12 +261,14 @@
                     $endDateDisplay = trim((string) ($c['endDate'] ?? ''));
                     $endDateDisplay = ($endDateDisplay === '' || $endDateDisplay === '0000-00-00') ? '-' : $endDateDisplay;
                     $status = (string) ($c['status'] ?? 'approved');
+                    $requestTypeLabel = ((string) ($c['request_type'] ?? 'join')) === 'role_change' ? 'Role Change' : 'Join Club';
                     $reviewNote = trim((string) ($c['review_note'] ?? ''));
                     $evidencePath = trim((string) ($c['evidence_path'] ?? ''));
                     $isLocked = $status === 'approved';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars($c['clubName'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars($requestTypeLabel, ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($c['role'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($c['roleDescription'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($startDateDisplay !== '' ? $startDateDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -297,7 +318,7 @@
                 <div class="bar-track">
                     <div class="bar-fill" style="width: <?= (int) $milestoneProgress ?>%;"></div>
                 </div>
-                <div class="muted" style="margin-top:8px;"><?= (int) $totalRecords ?> clubs logged</div>
+                <div class="muted" style="margin-top:8px;"><?= (int) $totalUniqueApprovedClubs ?> clubs logged</div>
             </div>
 
             <div class="card">

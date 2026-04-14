@@ -130,7 +130,7 @@
                     type="text"
                     name="search"
                     class="input"
-                    placeholder="Search student name, ID, email, or activity..."
+                    placeholder="Search student, activity, event, or club..."
                     value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                 <?php $currentSort = $_GET['sort'] ?? 'meritID'; ?>
@@ -139,6 +139,8 @@
                     <option value="student" <?= $currentSort === 'student' ? 'selected' : '' ?>>Student Name</option>
                     <option value="student_id" <?= $currentSort === 'student_id' ? 'selected' : '' ?>>Student ID</option>
                     <option value="activityName" <?= $currentSort === 'activityName' ? 'selected' : '' ?>>Activity</option>
+                    <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event</option>
+                    <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club</option>
                     <option value="hours" <?= $currentSort === 'hours' ? 'selected' : '' ?>>Hours</option>
                     <option value="dateFrom" <?= $currentSort === 'dateFrom' ? 'selected' : '' ?>>Date From</option>
                     <option value="dateTo" <?= $currentSort === 'dateTo' ? 'selected' : '' ?>>Date To</option>
@@ -170,6 +172,8 @@
                     <th>Student</th>
                     <th>Student ID</th>
                     <th>Email</th>
+                    <th>Club</th>
+                    <th>Event</th>
                     <th>Activity</th>
                     <th>Hours</th>
                     <th>Date From</th>
@@ -182,7 +186,7 @@
                 </tr>
                 <?php if (empty($merits)): ?>
                     <tr>
-                        <td colspan="12" class="muted">No merit records found.</td>
+                        <td colspan="14" class="muted">No merit records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($merits as $m): ?>
@@ -198,6 +202,8 @@
                         <td><?= htmlspecialchars($m['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($m['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($m['userEmail'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) ($m['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars((string) ($m['eventTitle'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($m['activityName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($m['hours'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($m['dateFrom'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>

@@ -26,14 +26,14 @@
         <div>
             <div class="admin-eyebrow">Admin Entry</div>
             <h1 class="admin-title">Create Merit for Student</h1>
-            <p class="admin-subtitle">Search a student and log merit activity on their behalf.</p>
+            <p class="admin-subtitle">Select a student and link merit to one of their approved events.</p>
         </div>
         <div class="admin-hero-actions">
             <a class="btn btn-secondary" href="index.php?url=merit/index">Back</a>
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
@@ -41,11 +41,11 @@
 
     <div class="admin-section">
         <div class="admin-section-header">
-            <h2 class="admin-section-title">Student Selection</h2>
+            <h2 class="admin-section-title">Student and Event Selection</h2>
             <span class="admin-section-chip">Required</span>
         </div>
         <div class="admin-section-body">
-            <form method="POST" class="form">
+            <form method="POST" class="form" id="adminMeritEventForm">
                 <?php csrf_field(); ?>
 
                 <div class="form-grid">
@@ -54,7 +54,7 @@
                         <input class="input" type="text" name="studentId" list="student-ids" placeholder="Start typing student ID...">
                         <datalist id="student-ids">
                             <?php foreach ($students as $s): ?>
-                                <option value="<?= htmlspecialchars($s['student_id'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <option value="<?= htmlspecialchars((string) ($s['student_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                             <?php endforeach; ?>
                         </datalist>
                     </div>
@@ -63,7 +63,7 @@
                         <input class="input" type="text" name="studentEmail" list="student-emails" placeholder="Start typing email...">
                         <datalist id="student-emails">
                             <?php foreach ($students as $s): ?>
-                                <option value="<?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                                <option value="<?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                             <?php endforeach; ?>
                         </datalist>
                     </div>
@@ -72,8 +72,8 @@
                         <select class="input" name="studentID">
                             <option value="">Select student</option>
                             <?php foreach ($students as $s): ?>
-                                <option value="<?= htmlspecialchars($s['userID'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
-                                    <?= htmlspecialchars($s['name'] ?? '', ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars($s['student_id'] ?? '-', ENT_QUOTES, 'UTF-8') ?> · <?= htmlspecialchars($s['email'] ?? '', ENT_QUOTES, 'UTF-8') ?>)
+                                <option value="<?= htmlspecialchars((string) ($s['userID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars((string) ($s['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($s['student_id'] ?? '-'), ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>)
                                 </option>
                             <?php endforeach; ?>
                         </select>
@@ -82,24 +82,45 @@
 
                 <div class="form-grid" style="margin-top:14px;">
                     <div>
-                        <label class="label">Activity Name</label>
-                        <input class="input" type="text" name="activityName" placeholder="e.g. Volunteer Program" required>
+                        <label class="label">Approved Event</label>
+                        <select class="input" name="eventID" id="eventID" required>
+                            <option value="">Select event</option>
+                            <?php foreach ($approvedEvents as $ev): ?>
+                                <option
+                                    value="<?= htmlspecialchars((string) ($ev['eventID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-title="<?= htmlspecialchars((string) ($ev['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-hours="<?= htmlspecialchars((string) ($ev['eventHours'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-date="<?= htmlspecialchars((string) ($ev['eventDate'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-club="<?= htmlspecialchars((string) ($ev['clubName'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    <?= htmlspecialchars((string) ($ev['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($ev['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars((string) ($ev['userName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars((string) ($ev['studentId'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
                     </div>
 
                     <div>
-                        <label class="label">Contribution Hours</label>
-                        <input class="input" type="number" name="hours" step="0.01" min="0.01" placeholder="e.g. 2" required>
+                        <label class="label">Club</label>
+                        <input class="input" type="text" id="clubDisplay" value="-" disabled>
+                    </div>
+
+                    <div>
+                        <label class="label">Activity Name (From Event)</label>
+                        <input class="input" type="text" id="activityDisplay" value="-" disabled>
+                    </div>
+
+                    <div>
+                        <label class="label">Merit Hours (From Event)</label>
+                        <input class="input" type="text" id="hoursDisplay" value="-" disabled>
                     </div>
 
                     <div>
                         <label class="label">Date From</label>
-                        <input class="input" type="date" name="dateFrom" required>
+                        <input class="input" type="text" id="dateFromDisplay" value="-" disabled>
                     </div>
 
                     <div>
                         <label class="label">Date To</label>
-                        <input class="input" type="date" name="dateTo">
-                        <div class="muted" style="margin-top:6px;">Optional for one-day activity.</div>
+                        <input class="input" type="text" id="dateToDisplay" value="-" disabled>
                     </div>
                 </div>
 
@@ -116,5 +137,40 @@
 
 </div>
 
-<?php require "../app/views/layout/footer.php"; ?>
+<script>
+(function () {
+    var select = document.getElementById('eventID');
+    var activityDisplay = document.getElementById('activityDisplay');
+    var hoursDisplay = document.getElementById('hoursDisplay');
+    var dateFromDisplay = document.getElementById('dateFromDisplay');
+    var dateToDisplay = document.getElementById('dateToDisplay');
+    var clubDisplay = document.getElementById('clubDisplay');
 
+    if (!select || !activityDisplay || !hoursDisplay || !dateFromDisplay || !dateToDisplay || !clubDisplay) {
+        return;
+    }
+
+    function syncEventPreview() {
+        var opt = select.options[select.selectedIndex];
+        if (!opt || !opt.value) {
+            activityDisplay.value = '-';
+            hoursDisplay.value = '-';
+            dateFromDisplay.value = '-';
+            dateToDisplay.value = '-';
+            clubDisplay.value = '-';
+            return;
+        }
+
+        activityDisplay.value = opt.getAttribute('data-title') || '-';
+        hoursDisplay.value = opt.getAttribute('data-hours') || '-';
+        dateFromDisplay.value = opt.getAttribute('data-date') || '-';
+        dateToDisplay.value = opt.getAttribute('data-date') || '-';
+        clubDisplay.value = opt.getAttribute('data-club') || '-';
+    }
+
+    select.addEventListener('change', syncEventPreview);
+    syncEventPreview();
+})();
+</script>
+
+<?php require "../app/views/layout/footer.php"; ?>

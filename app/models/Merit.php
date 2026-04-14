@@ -6,27 +6,34 @@ class Merit {
         $db = Database::connect();
 
         $allowedSort = [
-            'meritID' => 'meritID',
-            'activityName' => 'activityName',
-            'hours' => 'hours',
-            'dateFrom' => 'dateFrom',
-            'dateTo' => 'dateTo',
-            'status' => 'status',
+            'meritID' => 'm.meritID',
+            'activityName' => 'm.activityName',
+            'eventTitle' => 'e.eventTitle',
+            'clubName' => 'cc.clubName',
+            'hours' => 'm.hours',
+            'dateFrom' => 'm.dateFrom',
+            'dateTo' => 'm.dateTo',
+            'status' => 'm.status',
         ];
 
-        $sortColumn = $allowedSort[$sort] ?? 'meritID';
+        $sortColumn = $allowedSort[$sort] ?? 'm.meritID';
 
-        $sql = "SELECT * FROM merits WHERE userID = ?";
-        $params = [$userID];
+        $sql = "SELECT m.*, e.eventTitle, e.eventDate, e.eventHours, cc.clubName
+                FROM merits m
+                LEFT JOIN events e ON e.eventID = m.eventID
+                LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
+                WHERE m.userID = ?";
+        $params = [(int) $userID];
 
         if ($search !== null && $search !== '') {
-            $sql .= " AND activityName LIKE ?";
-            $params[] = '%' . $search . '%';
+            $sql .= " AND (m.activityName LIKE ? OR e.eventTitle LIKE ? OR cc.clubName LIKE ?)";
+            $term = '%' . $search . '%';
+            array_push($params, $term, $term, $term);
         }
 
         $allowedStatus = ['pending', 'approved', 'rejected'];
         if ($status !== null && in_array($status, $allowedStatus, true)) {
-            $sql .= " AND status = ?";
+            $sql .= " AND m.status = ?";
             $params[] = $status;
         }
 
@@ -43,6 +50,8 @@ class Merit {
         $allowedSort = [
             'meritID' => 'm.meritID',
             'activityName' => 'm.activityName',
+            'eventTitle' => 'e.eventTitle',
+            'clubName' => 'cc.clubName',
             'hours' => 'm.hours',
             'dateFrom' => 'm.dateFrom',
             'dateTo' => 'm.dateTo',
@@ -53,16 +62,19 @@ class Merit {
 
         $sortColumn = $allowedSort[$sort] ?? 'm.meritID';
 
-        $sql = "SELECT m.*, u.name AS userName, u.email AS userEmail, u.student_id AS studentId
+        $sql = "SELECT m.*, u.name AS userName, u.email AS userEmail, u.student_id AS studentId,
+                       e.eventTitle, e.eventDate, e.eventHours, cc.clubName
                 FROM merits m
-                JOIN users u ON u.userID = m.userID";
+                JOIN users u ON u.userID = m.userID
+                LEFT JOIN events e ON e.eventID = m.eventID
+                LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID";
         $params = [];
         $conditions = [];
 
         if ($search !== null && $search !== '') {
-            $conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR u.student_id LIKE ? OR m.activityName LIKE ?)";
+            $conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR u.student_id LIKE ? OR m.activityName LIKE ? OR e.eventTitle LIKE ? OR cc.clubName LIKE ?)";
             $searchTerm = '%' . $search . '%';
-            $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+            $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
         }
 
         $allowedStatus = ['pending', 'approved', 'rejected'];
@@ -82,13 +94,25 @@ class Merit {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public static function create($userID, $activityName, $hours, $dateFrom, $dateTo, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null) {
+    public static function create($userID, $eventID, $activityName, $hours, $dateFrom, $dateTo, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null) {
         $db = Database::connect();
         $stmt = $db->prepare(
-            "INSERT INTO merits (userID, activityName, hours, dateFrom, dateTo, status, reviewed_by, review_note, reviewed_at, evidence_path)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO merits (userID, eventID, activityName, hours, dateFrom, dateTo, status, reviewed_by, review_note, reviewed_at, evidence_path)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
-        $created = $stmt->execute([$userID, $activityName, $hours, $dateFrom, $dateTo, $status, $reviewedBy, $reviewNote, $reviewedAt, $evidencePath]);
+        $created = $stmt->execute([
+            (int) $userID,
+            $eventID !== null ? (int) $eventID : null,
+            $activityName,
+            $hours,
+            $dateFrom,
+            $dateTo,
+            $status,
+            $reviewedBy,
+            $reviewNote,
+            $reviewedAt,
+            $evidencePath,
+        ]);
         if (!$created) {
             return false;
         }
@@ -103,22 +127,34 @@ class Merit {
 
     public static function find($id, $userID) {
         $db = Database::connect();
-        $stmt = $db->prepare("SELECT * FROM merits WHERE meritID = ? AND userID = ?");
-        $stmt->execute([$id, $userID]);
+        $stmt = $db->prepare(
+            "SELECT m.*, e.eventTitle, e.eventDate, e.eventHours, cc.clubName
+             FROM merits m
+             LEFT JOIN events e ON e.eventID = m.eventID
+             LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
+             WHERE m.meritID = ? AND m.userID = ?"
+        );
+        $stmt->execute([(int) $id, (int) $userID]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
     public static function findById($id) {
         $db = Database::connect();
-        $stmt = $db->prepare("SELECT * FROM merits WHERE meritID = ?");
-        $stmt->execute([$id]);
+        $stmt = $db->prepare(
+            "SELECT m.*, e.eventTitle, e.eventDate, e.eventHours, cc.clubName
+             FROM merits m
+             LEFT JOIN events e ON e.eventID = m.eventID
+             LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
+             WHERE m.meritID = ?"
+        );
+        $stmt->execute([(int) $id]);
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $userID, $activityName, $hours, $dateFrom, $dateTo, $evidencePath = null, $replaceEvidence = false, $appealNote = null) {
+    public static function update($id, $userID, $eventID, $activityName, $hours, $dateFrom, $dateTo, $evidencePath = null, $replaceEvidence = false, $appealNote = null) {
         $db = Database::connect();
         $currentStmt = $db->prepare("SELECT status FROM merits WHERE meritID = ? AND userID = ? AND status IN ('pending', 'rejected')");
-        $currentStmt->execute([$id, $userID]);
+        $currentStmt->execute([(int) $id, (int) $userID]);
         $current = $currentStmt->fetch(PDO::FETCH_ASSOC);
         if (!$current) {
             return false;
@@ -132,7 +168,7 @@ class Merit {
 
         $stmt = $db->prepare(
             "UPDATE merits
-             SET activityName=?, hours=?, dateFrom=?, dateTo=?,
+             SET eventID = ?, activityName = ?, hours = ?, dateFrom = ?, dateTo = ?,
                  evidence_path = CASE WHEN ? = 1 THEN ? ELSE evidence_path END,
                  status='pending', reviewed_at=NULL, reviewed_by=NULL, review_note=NULL,
                  appeal_note = CASE WHEN ? = 1 THEN ? ELSE appeal_note END,
@@ -142,6 +178,7 @@ class Merit {
              WHERE meritID=? AND userID=? AND status IN ('pending', 'rejected')"
         );
         $updated = $stmt->execute([
+            $eventID !== null ? (int) $eventID : null,
             $activityName,
             $hours,
             $dateFrom,
@@ -155,25 +192,32 @@ class Merit {
             $isAppealResubmission ? 1 : 0,
             $isAppealResubmission ? 1 : 0,
             $now,
-            $id,
-            $userID,
+            (int) $id,
+            (int) $userID,
         ]);
 
         if ($updated && $isAppealResubmission) {
-            self::addStatusLog($id, 'rejected', 'pending', (int) $userID, $appealNote, 'student_appeal');
+            self::addStatusLog((int) $id, 'rejected', 'pending', (int) $userID, $appealNote, 'student_appeal');
         }
 
         return $updated;
     }
 
-    public static function updateById($id, $activityName, $hours, $dateFrom, $dateTo) {
+    public static function updateById($id, $eventID, $activityName, $hours, $dateFrom, $dateTo) {
         $db = Database::connect();
         $stmt = $db->prepare(
             "UPDATE merits
-             SET activityName=?, hours=?, dateFrom=?, dateTo=?
-             WHERE meritID=?"
+             SET eventID = ?, activityName = ?, hours = ?, dateFrom = ?, dateTo = ?
+             WHERE meritID = ?"
         );
-        return $stmt->execute([$activityName, $hours, $dateFrom, $dateTo, $id]);
+        return $stmt->execute([
+            $eventID !== null ? (int) $eventID : null,
+            $activityName,
+            $hours,
+            $dateFrom,
+            $dateTo,
+            (int) $id,
+        ]);
     }
 
     public static function updateStatusById($id, $status, $reviewedBy, $reviewNote, $source = 'admin_review') {
@@ -198,9 +242,9 @@ class Merit {
                  SET status = ?, reviewed_at = NULL, reviewed_by = NULL, review_note = NULL
                  WHERE meritID = ?"
             );
-            $updated = $stmt->execute([$status, $id]);
+            $updated = $stmt->execute([$status, (int) $id]);
             if ($updated && $fromStatus !== $status) {
-                self::addStatusLog($id, $fromStatus, $status, $reviewedBy, $reviewNote, $source);
+                self::addStatusLog((int) $id, $fromStatus, $status, $reviewedBy, $reviewNote, $source);
             }
             return $updated;
         }
@@ -211,9 +255,9 @@ class Merit {
              SET status = ?, reviewed_at = ?, reviewed_by = ?, review_note = ?
              WHERE meritID = ?"
         );
-        $updated = $stmt->execute([$status, $reviewedAt, $reviewedBy, $reviewNote, $id]);
+        $updated = $stmt->execute([$status, $reviewedAt, $reviewedBy, $reviewNote, (int) $id]);
         if ($updated && $fromStatus !== $status) {
-            self::addStatusLog($id, $fromStatus, $status, $reviewedBy, $reviewNote, $source);
+            self::addStatusLog((int) $id, $fromStatus, $status, $reviewedBy, $reviewNote, $source);
         }
         return $updated;
     }
@@ -221,13 +265,13 @@ class Merit {
     public static function delete($id, $userID) {
         $db = Database::connect();
         $stmt = $db->prepare("DELETE FROM merits WHERE meritID=? AND userID=? AND status IN ('pending', 'rejected')");
-        return $stmt->execute([$id, $userID]);
+        return $stmt->execute([(int) $id, (int) $userID]);
     }
 
     public static function deleteById($id) {
         $db = Database::connect();
         $stmt = $db->prepare("DELETE FROM merits WHERE meritID=?");
-        return $stmt->execute([$id]);
+        return $stmt->execute([(int) $id]);
     }
 
     public static function addStatusLog($meritID, $fromStatus, $toStatus, $changedBy, $changeNote, $changeSource) {

@@ -1,6 +1,12 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
+<?php
+    $selectedEventID = isset($_POST['eventID'])
+        ? (int) $_POST['eventID']
+        : (int) ($achievement['eventID'] ?? 0);
+?>
+
 <div class="main">
 
     <div class="topbar">
@@ -31,11 +37,17 @@
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
     <?php endif; ?>
+
+    <?php if (empty($approvedEvents)): ?>
+        <div class="card">
+            <div class="muted">No approved events are available for this record.</div>
+        </div>
+    <?php else: ?>
 
     <div class="card">
         <form method="POST" enctype="multipart/form-data" class="form">
@@ -43,13 +55,26 @@
 
             <div class="form-grid">
                 <div>
+                    <label class="label">Approved Event</label>
+                    <select class="input" name="eventID" required>
+                        <option value="">Select event</option>
+                        <?php foreach ($approvedEvents as $ev): ?>
+                            <?php $eventId = (int) ($ev['eventID'] ?? 0); ?>
+                            <option value="<?= htmlspecialchars((string) $eventId, ENT_QUOTES, 'UTF-8') ?>" <?= $eventId === $selectedEventID ? 'selected' : '' ?>>
+                                <?= htmlspecialchars((string) ($ev['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($ev['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars((string) ($ev['eventDate'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>)
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div>
                     <label class="label">Title</label>
-                    <input class="input" type="text" name="title" value="<?= htmlspecialchars($achievement['title'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                    <input class="input" type="text" name="title" value="<?= htmlspecialchars((string) ($achievement['title'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
 
                 <div>
                     <label class="label">Category</label>
-                    <input class="input" type="text" name="category" value="<?= htmlspecialchars($achievement['category'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                    <input class="input" type="text" name="category" value="<?= htmlspecialchars((string) ($achievement['category'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                 </div>
 
                 <div>
@@ -65,13 +90,13 @@
 
                 <div>
                     <label class="label">Date Received</label>
-                    <input class="input" type="date" name="dateReceived" value="<?= htmlspecialchars($achievement['dateReceived'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                    <input class="input" type="date" name="dateReceived" value="<?= htmlspecialchars((string) ($achievement['dateReceived'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                 </div>
             </div>
 
             <div style="margin-top:14px;">
                 <label class="label">Description</label>
-                <textarea class="input" name="description" rows="4"><?= htmlspecialchars($achievement['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                <textarea class="input" name="description" rows="4"><?= htmlspecialchars((string) ($achievement['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
             </div>
 
             <div class="form-actions">
@@ -92,6 +117,8 @@
             </div>
         </form>
     </div>
+
+    <?php endif; ?>
 
         </div>
     </div>

@@ -23,34 +23,55 @@
 
     <div class="page-header">
         <div>
-            <h2 style="margin:0;">Add New Club Record</h2>
-            <div class="muted" style="margin-top:6px;">Record your membership and role details.</div>
+            <h2 style="margin:0;">Club Join / Role Request</h2>
+            <div class="muted" style="margin-top:6px;">Pick an admin-created club and submit a request for approval.</div>
         </div>
         <div class="page-actions">
             <a class="btn btn-secondary" href="index.php?url=club/index">Back</a>
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
     <?php endif; ?>
 
+    <?php if (empty($clubCatalog)): ?>
+        <div class="card">
+            <div class="muted">No active clubs are available yet. Please wait for admin to create clubs.</div>
+        </div>
+    <?php else: ?>
+
     <div class="card">
 
-        <form method="POST" enctype="multipart/form-data" class="form">
+        <form method="POST" enctype="multipart/form-data" class="form" id="clubRequestForm">
             <?php csrf_field(); ?>
 
             <div class="form-grid">
                 <div>
-                    <label class="label">Club Name</label>
-                    <input class="input" type="text" name="clubName" placeholder="e.g. Debate Society" required>
+                    <label class="label">Club</label>
+                    <select class="input" name="clubCatalogID" required>
+                        <option value="">Select club</option>
+                        <?php foreach ($clubCatalog as $clubDef): ?>
+                            <option value="<?= htmlspecialchars((string) ($clubDef['clubCatalogID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) ($clubDef['clubName'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>
-                    <label class="label">Role</label>
-                    <input class="input" type="text" name="role" placeholder="e.g. Member, Secretary">
+                    <label class="label">Request Type</label>
+                    <select class="input" name="requestType" id="requestType" required>
+                        <option value="join">Join club (Member)</option>
+                        <option value="role_change">Request higher role</option>
+                    </select>
+                </div>
+
+                <div id="desiredRoleGroup" style="display:none;">
+                    <label class="label">Desired Role</label>
+                    <input class="input" type="text" name="desiredRole" id="desiredRole" placeholder="e.g. Secretary, Treasurer">
                 </div>
 
                 <div>
@@ -61,13 +82,13 @@
                 <div>
                     <label class="label">End Date</label>
                     <input class="input" type="date" name="endDate">
-                    <div class="muted" style="margin-top:6px;">Leave blank if membership is still active.</div>
+                    <div class="muted" style="margin-top:6px;">Optional. Leave blank if ongoing.</div>
                 </div>
             </div>
 
             <div style="margin-top:14px;">
-                <label class="label">Role Description</label>
-                <textarea class="input" name="roleDescription" rows="4" placeholder="Describe your role or responsibilities."></textarea>
+                <label class="label">Reason / Note</label>
+                <textarea class="input" name="roleDescription" rows="4" placeholder="Tell admin why you are joining or requesting this role."></textarea>
             </div>
 
             <div class="form-actions">
@@ -76,7 +97,7 @@
                     <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
                     <div class="muted" style="margin-top:6px;">Accepted: PDF, JPG, PNG (max 5MB).</div>
                 </div>
-                <button type="submit" class="btn">Save Record</button>
+                <button type="submit" class="btn">Submit Request</button>
                 <a href="index.php?url=club/index" class="btn btn-secondary">Cancel</a>
             </div>
 
@@ -84,9 +105,35 @@
 
     </div>
 
+    <?php endif; ?>
+
         </div>
     </div>
 
 </div>
+
+<script>
+(function () {
+    var requestType = document.getElementById('requestType');
+    var desiredRoleGroup = document.getElementById('desiredRoleGroup');
+    var desiredRole = document.getElementById('desiredRole');
+
+    if (!requestType || !desiredRoleGroup || !desiredRole) {
+        return;
+    }
+
+    function syncRequestType() {
+        var isRoleChange = requestType.value === 'role_change';
+        desiredRoleGroup.style.display = isRoleChange ? 'block' : 'none';
+        desiredRole.required = isRoleChange;
+        if (!isRoleChange) {
+            desiredRole.value = '';
+        }
+    }
+
+    requestType.addEventListener('change', syncRequestType);
+    syncRequestType();
+})();
+</script>
 
 <?php require "../app/views/layout/footer.php"; ?>

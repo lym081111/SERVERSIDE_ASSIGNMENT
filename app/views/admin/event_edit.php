@@ -2,17 +2,11 @@
 <?php require "../app/views/layout/sidebar.php"; ?>
 
 <?php
-    $studentName = '-';
-    $studentEmail = '-';
-    $studentId = '-';
-    foreach ($students as $s) {
-        if ((int) ($s['userID'] ?? 0) === (int) ($event['userID'] ?? 0)) {
-            $studentName = $s['name'] ?? '-';
-            $studentEmail = $s['email'] ?? '-';
-            $studentId = $s['student_id'] ?? '-';
-            break;
-        }
-    }
+    $studentName = (string) ($student['name'] ?? '-');
+    $studentEmail = (string) ($student['email'] ?? '-');
+    $studentId = (string) ($student['student_id'] ?? '-');
+    $currentClubCatalogId = (string) ($event['clubCatalogID'] ?? '');
+    $currentClubName = (string) ($event['clubName'] ?? '');
 ?>
 
 <div class="main module-page">
@@ -47,7 +41,7 @@
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
@@ -87,8 +81,23 @@
 
                 <div class="form-grid">
                     <div>
+                        <label class="label">Club</label>
+                        <select class="input" name="clubCatalogID" required>
+                            <?php if ($currentClubCatalogId === '' && $currentClubName !== ''): ?>
+                                <option value="" selected><?= htmlspecialchars($currentClubName, ENT_QUOTES, 'UTF-8') ?> (legacy)</option>
+                            <?php endif; ?>
+                            <?php foreach ($clubCatalog as $clubDef): ?>
+                                <?php $clubId = (string) ($clubDef['clubCatalogID'] ?? ''); ?>
+                                <option value="<?= htmlspecialchars($clubId, ENT_QUOTES, 'UTF-8') ?>" <?= $clubId === $currentClubCatalogId ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars((string) ($clubDef['clubName'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
                         <label class="label">Event Title</label>
-                        <input class="input" type="text" name="eventTitle" value="<?= htmlspecialchars($event['eventTitle'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                        <input class="input" type="text" name="eventTitle" value="<?= htmlspecialchars((string) ($event['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
 
                     <div>
@@ -106,23 +115,28 @@
 
                     <div>
                         <label class="label">Event Date</label>
-                        <input class="input" type="date" name="eventDate" value="<?= htmlspecialchars($event['eventDate'] ?? '', ENT_QUOTES, 'UTF-8') ?>" required>
+                        <input class="input" type="date" name="eventDate" value="<?= htmlspecialchars((string) ($event['eventDate'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                    </div>
+
+                    <div>
+                        <label class="label">Event Hours</label>
+                        <input class="input" type="number" name="eventHours" step="0.01" min="0.01" value="<?= htmlspecialchars((string) ($event['eventHours'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
 
                     <div>
                         <label class="label">Location</label>
-                        <input class="input" type="text" name="location" value="<?= htmlspecialchars($event['location'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
+                        <input class="input" type="text" name="location" value="<?= htmlspecialchars((string) ($event['location'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                     </div>
                 </div>
 
                 <div style="margin-top:14px;">
                     <label class="label">Description</label>
-                    <textarea class="input" name="description" rows="4"><?= htmlspecialchars($event['description'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <textarea class="input" name="description" rows="4"><?= htmlspecialchars((string) ($event['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
 
                 <div style="margin-top:14px;">
                     <label class="label">Reflection (Learning Outcome)</label>
-                    <textarea class="input" name="reflection" rows="4"><?= htmlspecialchars($event['reflection'] ?? '', ENT_QUOTES, 'UTF-8') ?></textarea>
+                    <textarea class="input" name="reflection" rows="4"><?= htmlspecialchars((string) ($event['reflection'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
                 </div>
 
                 <div class="form-grid" style="margin-top:14px;">
@@ -137,7 +151,7 @@
                     </div>
                     <div>
                         <label class="label">Review Note</label>
-                        <input class="input" type="text" name="review_note" value="<?= htmlspecialchars($event['review_note'] ?? '', ENT_QUOTES, 'UTF-8') ?>" placeholder="Optional admin note">
+                        <input class="input" type="text" name="review_note" value="<?= htmlspecialchars((string) ($event['review_note'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" placeholder="Optional admin note">
                     </div>
                 </div>
 
@@ -155,4 +169,3 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
-

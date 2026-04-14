@@ -45,7 +45,7 @@
             <p class="admin-subtitle">Search students and manage club records across the system.</p>
         </div>
         <div class="admin-hero-actions">
-            <a class="btn" href="index.php?url=club/create">Add Club for Student</a>
+            <a class="btn" href="index.php?url=club/create">Manage Club Catalog</a>
             <a class="btn btn-secondary no-print" href="<?= htmlspecialchars($exportUrl, ENT_QUOTES, 'UTF-8') ?>">Export CSV</a>
             <button class="btn btn-secondary" type="button" onclick="window.print()">Print</button>
             <a class="btn btn-secondary" href="index.php?url=club/index">Refresh</a>
@@ -73,12 +73,12 @@
             <form method="GET" class="filter-bar">
                 <input type="hidden" name="url" value="club/index">
 
-                <input
-                    type="text"
-                    name="search"
-                    class="input"
-                    placeholder="Search student, ID, email, club, role, or role description..."
-                    value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
+                    <input
+                        type="text"
+                        name="search"
+                        class="input"
+                        placeholder="Search student, ID, email, club, role, request type, or description..."
+                        value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                 <?php $currentSort = $_GET['sort'] ?? 'clubID'; ?>
                 <select name="sort" class="input">
@@ -87,6 +87,7 @@
                     <option value="student_id" <?= $currentSort === 'student_id' ? 'selected' : '' ?>>Student ID</option>
                     <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club Name</option>
                     <option value="role" <?= $currentSort === 'role' ? 'selected' : '' ?>>Role</option>
+                    <option value="request_type" <?= $currentSort === 'request_type' ? 'selected' : '' ?>>Request Type</option>
                     <option value="startDate" <?= $currentSort === 'startDate' ? 'selected' : '' ?>>Start Date</option>
                     <option value="endDate" <?= $currentSort === 'endDate' ? 'selected' : '' ?>>End Date</option>
                     <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
@@ -118,6 +119,7 @@
                     <th>Student ID</th>
                     <th>Email</th>
                     <th>Club</th>
+                    <th>Request Type</th>
                     <th>Role</th>
                     <th>Role Description</th>
                     <th>Start</th>
@@ -129,7 +131,7 @@
                 </tr>
                 <?php if (empty($clubs)): ?>
                     <tr>
-                        <td colspan="12" class="muted">No club records found.</td>
+                        <td colspan="13" class="muted">No club records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($clubs as $c): ?>
@@ -143,6 +145,7 @@
                         <td><?= htmlspecialchars($c['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($c['userEmail'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($c['clubName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                        <td><?= htmlspecialchars(((string) ($c['request_type'] ?? 'join')) === 'role_change' ? 'Role Change' : 'Join Club', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($c['role'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($c['roleDescription'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($c['startDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>

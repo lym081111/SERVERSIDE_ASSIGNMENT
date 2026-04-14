@@ -24,18 +24,24 @@
     <div class="page-header">
         <div>
             <h2 style="margin:0;">Add New Event Record</h2>
-            <div class="muted" style="margin-top:6px;">Fill in the details below to record an event.</div>
+            <div class="muted" style="margin-top:6px;">Create an event under your approved club membership.</div>
         </div>
         <div class="page-actions">
             <a class="btn btn-secondary" href="index.php?url=event/index">Back</a>
         </div>
     </div>
 
-    <?php if(isset($error)): ?>
+    <?php if (isset($error)): ?>
         <div class="error">
             <?= htmlspecialchars($error, ENT_QUOTES, 'UTF-8') ?>
         </div>
     <?php endif; ?>
+
+    <?php if (empty($clubCatalog)): ?>
+        <div class="card">
+            <div class="muted">You need at least one approved active club membership before creating events.</div>
+        </div>
+    <?php else: ?>
 
     <div class="card">
 
@@ -44,8 +50,20 @@
 
             <div class="form-grid">
                 <div>
+                    <label class="label">Club</label>
+                    <select class="input" name="clubCatalogID" required>
+                        <option value="">Select club</option>
+                        <?php foreach ($clubCatalog as $clubDef): ?>
+                            <option value="<?= htmlspecialchars((string) ($clubDef['clubCatalogID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= htmlspecialchars((string) ($clubDef['clubName'] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div>
                     <label class="label">Event Title</label>
-                    <input class="input" type="text" name="eventTitle" placeholder="e.g. Campus Leadership Talk" required>
+                    <input class="input" type="text" name="eventTitle" placeholder="e.g. UTAR Hackathon" required>
                 </div>
 
                 <div>
@@ -63,6 +81,12 @@
                 <div>
                     <label class="label">Event Date</label>
                     <input class="input" type="date" name="eventDate" required>
+                </div>
+
+                <div>
+                    <label class="label">Event Hours</label>
+                    <input class="input" type="number" name="eventHours" step="0.01" min="0.01" placeholder="e.g. 2" required>
+                    <div class="muted" style="margin-top:6px;">This value will be used by merit records linked to this event.</div>
                 </div>
 
                 <div>
@@ -94,6 +118,8 @@
         </form>
 
     </div>
+
+    <?php endif; ?>
 
         </div>
     </div>

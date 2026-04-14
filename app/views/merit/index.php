@@ -170,13 +170,15 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search activity name..."
+                        placeholder="Search activity, event, or club..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'meritID'; ?>
                     <select name="sort" class="input">
                         <option value="meritID" <?= $currentSort === 'meritID' ? 'selected' : '' ?>>Newest</option>
                         <option value="activityName" <?= $currentSort === 'activityName' ? 'selected' : '' ?>>Activity Name</option>
+                        <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event</option>
+                        <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club</option>
                         <option value="hours" <?= $currentSort === 'hours' ? 'selected' : '' ?>>Hours</option>
                         <option value="dateFrom" <?= $currentSort === 'dateFrom' ? 'selected' : '' ?>>Date From</option>
                         <option value="dateTo" <?= $currentSort === 'dateTo' ? 'selected' : '' ?>>Date To</option>
@@ -198,6 +200,8 @@
 
             <table class="co-records-table">
                 <tr>
+                    <th>Club</th>
+                    <th>Event</th>
                     <th>Activity</th>
                     <th>Hours</th>
                     <th>Date From</th>
@@ -209,7 +213,7 @@
 
                 <?php if (empty($merits)): ?>
                     <tr>
-                        <td colspan="7" class="muted">No merit records found.</td>
+                        <td colspan="9" class="muted">No merit records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -228,6 +232,8 @@
                     $resubmissionCount = (int) ($m['resubmission_count'] ?? 0);
                 ?>
                 <tr>
+                    <td><?= htmlspecialchars((string) ($m['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars((string) ($m['eventTitle'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($m['activityName']) ?></td>
                     <td><?= htmlspecialchars($m['hours'], ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($dateFromDisplay !== '' ? $dateFromDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>

@@ -161,15 +161,17 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search title, type, location, reflection, or date..."
+                        placeholder="Search club, title, type, hours, location, reflection, or date..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'eventID'; ?>
                     <select name="sort" class="input">
                         <option value="eventID" <?= $currentSort === 'eventID' ? 'selected' : '' ?>>Newest</option>
                         <option value="eventTitle" <?= $currentSort === 'eventTitle' ? 'selected' : '' ?>>Event Title</option>
+                        <option value="clubName" <?= $currentSort === 'clubName' ? 'selected' : '' ?>>Club</option>
                         <option value="eventType" <?= $currentSort === 'eventType' ? 'selected' : '' ?>>Event Type</option>
                         <option value="eventDate" <?= $currentSort === 'eventDate' ? 'selected' : '' ?>>Event Date</option>
+                        <option value="eventHours" <?= $currentSort === 'eventHours' ? 'selected' : '' ?>>Event Hours</option>
                         <option value="location" <?= $currentSort === 'location' ? 'selected' : '' ?>>Location</option>
                         <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
                     </select>
@@ -189,9 +191,11 @@
 
             <table class="co-records-table">
                 <tr>
+                    <th>Club</th>
                     <th>Event Title</th>
                     <th>Type</th>
                     <th>Date</th>
+                    <th>Hours</th>
                     <th>Location</th>
                     <th>Summary</th>
                     <th>Reflection</th>
@@ -201,7 +205,7 @@
 
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="8" class="muted">No event records found.</td>
+                        <td colspan="10" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -215,11 +219,13 @@
                     $isLocked = $status === 'approved';
                 ?>
                 <tr>
+                    <td><?= htmlspecialchars((string) ($e['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['eventTitle'] ?? '', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
                         <span class="chip"><?= htmlspecialchars(($e['eventType'] ?? 'General') ?: 'General', ENT_QUOTES, 'UTF-8') ?></span>
                     </td>
                     <td><?= htmlspecialchars($eventDateDisplay !== '' ? $eventDateDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
+                    <td><?= htmlspecialchars((string) ($e['eventHours'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
