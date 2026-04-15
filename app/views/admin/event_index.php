@@ -34,6 +34,25 @@
             $exportParams['status'] = (string) $_GET['status'];
         }
         $exportUrl = 'index.php?' . http_build_query($exportParams);
+
+        $currentPage = max(1, (int) ($pagination['currentPage'] ?? 1));
+        $totalPages = max(1, (int) ($pagination['totalPages'] ?? 1));
+        $totalRecords = max(0, (int) ($pagination['totalRecords'] ?? (is_array($events) ? count($events) : 0)));
+        $perPage = max(1, (int) ($pagination['perPage'] ?? 10));
+        $startRecord = $totalRecords > 0 ? (($currentPage - 1) * $perPage) + 1 : 0;
+        $endRecord = $totalRecords > 0 ? min($totalRecords, $currentPage * $perPage) : 0;
+        $paginationParams = ['url' => 'event/index'];
+        if (!empty($_GET['search'])) {
+            $paginationParams['search'] = (string) $_GET['search'];
+        }
+        if (!empty($_GET['sort'])) {
+            $paginationParams['sort'] = (string) $_GET['sort'];
+        }
+        if (!empty($_GET['status'])) {
+            $paginationParams['status'] = (string) $_GET['status'];
+        }
+        $pageWindowStart = max(1, $currentPage - 2);
+        $pageWindowEnd = min($totalPages, $currentPage + 2);
     ?>
 
     <div class="print-title">Event Records (Admin)</div>
@@ -91,6 +110,10 @@
                     <option value="eventDate" <?= $currentSort === 'eventDate' ? 'selected' : '' ?>>Event Date</option>
                     <option value="eventHours" <?= $currentSort === 'eventHours' ? 'selected' : '' ?>>Event Hours</option>
                     <option value="location" <?= $currentSort === 'location' ? 'selected' : '' ?>>Location</option>
+                    <option value="participantCapacity" <?= $currentSort === 'participantCapacity' ? 'selected' : '' ?>>Capacity</option>
+                    <option value="registeredCount" <?= $currentSort === 'registeredCount' ? 'selected' : '' ?>>Registered Count</option>
+                    <option value="waitlistCount" <?= $currentSort === 'waitlistCount' ? 'selected' : '' ?>>Waitlist Count</option>
+                    <option value="registrationStatus" <?= $currentSort === 'registrationStatus' ? 'selected' : '' ?>>Registration Status</option>
                     <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
                 </select>
 
@@ -111,9 +134,10 @@
     <div class="admin-section">
         <div class="admin-section-header">
             <h2 class="admin-section-title">All Event Records</h2>
-            <span class="admin-section-chip"><?= is_array($events) ? count($events) : 0 ?> total</span>
+            <span class="admin-section-chip"><?= (int) $totalRecords ?> total</span>
         </div>
         <div class="admin-section-body">
+            <div class="records-table-wrap">
             <table class="admin-table co-records-table">
                 <tr>
                     <th>Student</th>
@@ -124,6 +148,8 @@
                     <th>Type</th>
                     <th>Date</th>
                     <th>Hours</th>
+                    <th>Seats</th>
+                    <th>Registration</th>
                     <th>Location</th>
                     <th>Description</th>
                     <th>Reflection</th>
@@ -134,7 +160,7 @@
                 </tr>
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="15" class="muted">No event records found.</td>
+                        <td colspan="17" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($events as $e): ?>
@@ -142,6 +168,22 @@
                         $status = (string) ($e['status'] ?? 'approved');
                         $reviewNote = trim((string) ($e['review_note'] ?? ''));
                         $evidencePath = trim((string) ($e['evidence_path'] ?? ''));
+                        $participantCapacity = isset($e['participantCapacity']) ? (int) $e['participantCapacity'] : 0;
+                        $registeredCount = isset($e['registeredCount']) ? (int) $e['registeredCount'] : 0;
+                        $waitlistCount = isset($e['waitlistCount']) ? (int) $e['waitlistCount'] : 0;
+                        $registrationStatus = trim((string) ($e['registrationStatus'] ?? ''));
+                        if ($registrationStatus === '') {
+                            if ($participantCapacity <= 0 || $registeredCount < $participantCapacity) {
+                                $registrationStatus = 'open';
+                            } elseif (!empty($e['waitlistEnabled'])) {
+                                $registrationStatus = 'waitlist';
+                            } else {
+                                $registrationStatus = 'full';
+                            }
+                        }
+                        $seatSummary = $participantCapacity > 0
+                            ? ($registeredCount . '/' . $participantCapacity)
+                            : 'Unlimited';
                     ?>
                     <tr>
                         <td><?= htmlspecialchars($e['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -152,6 +194,13 @@
                         <td><?= htmlspecialchars(($e['eventType'] ?? 'General') ?: 'General', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['eventDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string) ($e['eventHours'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <?= htmlspecialchars($seatSummary, ENT_QUOTES, 'UTF-8') ?>
+                            <?php if ($participantCapacity > 0): ?>
+                                <div class="muted" style="margin-top:4px;font-size:0.85rem;">Waitlist: <?= (int) $waitlistCount ?></div>
+                            <?php endif; ?>
+                        </td>
+                        <td><span class="chip"><?= htmlspecialchars(ucfirst($registrationStatus), ENT_QUOTES, 'UTF-8') ?></span></td>
                         <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($e['reflection'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -169,6 +218,10 @@
                             <form method="POST" action="index.php?url=event/review" class="review-form">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <select name="status" class="input">
                                     <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
                                     <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?>>Approved</option>
@@ -189,6 +242,10 @@
                             <form method="POST" action="index.php?url=event/delete" style="display:inline;">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <button type="submit" class="link danger" onclick="return confirm('Delete this event record?')">
                                     Delete
                                 </button>
@@ -197,6 +254,42 @@
                     </tr>
                 <?php endforeach; ?>
             </table>
+            </div>
+            <div class="pagination-bar">
+                <div class="pagination-meta">
+                    Showing <?= (int) $startRecord ?>-<?= (int) $endRecord ?> of <?= (int) $totalRecords ?>
+                </div>
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination-links">
+                        <?php
+                            $prevParams = $paginationParams;
+                            $prevParams['page'] = max(1, $currentPage - 1);
+                            $nextParams = $paginationParams;
+                            $nextParams['page'] = min($totalPages, $currentPage + 1);
+                        ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage <= 1 ? 'disabled' : '' ?>"
+                            <?= $currentPage <= 1 ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($prevParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Previous
+                        </a>
+                        <?php for ($pageNo = $pageWindowStart; $pageNo <= $pageWindowEnd; $pageNo++): ?>
+                            <?php $pageParams = $paginationParams; $pageParams['page'] = $pageNo; ?>
+                            <a
+                                class="btn btn-secondary <?= $pageNo === $currentPage ? 'active' : '' ?>"
+                                href="index.php?<?= htmlspecialchars(http_build_query($pageParams), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= (int) $pageNo ?>
+                            </a>
+                        <?php endfor; ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                            <?= $currentPage >= $totalPages ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($nextParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Next
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 

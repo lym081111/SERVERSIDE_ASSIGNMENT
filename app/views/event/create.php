@@ -93,6 +93,17 @@
                     <label class="label">Location</label>
                     <input class="input" type="text" name="location" placeholder="e.g. Main Hall">
                 </div>
+
+                <div>
+                    <label class="label">Participant Capacity (optional)</label>
+                    <input class="input" type="number" name="participantCapacity" min="1" step="1" placeholder="Leave empty for unlimited">
+                    <div class="muted" style="margin-top:6px;">Registered count is auto-calculated from approved participant records.</div>
+                </div>
+
+                <div style="display:flex;align-items:center;gap:8px;padding-top:28px;">
+                    <input type="checkbox" id="waitlistEnabled" name="waitlistEnabled" value="1" checked>
+                    <label class="label" for="waitlistEnabled" style="margin:0;">Enable waitlist when full</label>
+                </div>
             </div>
 
             <div style="margin-top:14px;">

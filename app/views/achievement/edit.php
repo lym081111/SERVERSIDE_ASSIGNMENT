@@ -5,6 +5,9 @@
     $selectedEventID = isset($_POST['eventID'])
         ? (int) $_POST['eventID']
         : (int) ($achievement['eventID'] ?? 0);
+    $filterSearch = htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $filterSort = htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8');
+    $filterStatus = htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8');
 ?>
 
 <div class="main">
@@ -33,7 +36,7 @@
             <div class="muted" style="margin-top:6px;">Update the achievement details.</div>
         </div>
         <div class="page-actions">
-            <a class="btn btn-secondary" href="index.php?url=achievement/index">Back</a>
+            <a class="btn btn-secondary" href="index.php?url=achievement/index&search=<?= $filterSearch ?>&sort=<?= $filterSort ?>&status=<?= $filterStatus ?>">Back</a>
         </div>
     </div>
 
@@ -52,15 +55,21 @@
     <div class="card">
         <form method="POST" enctype="multipart/form-data" class="form">
             <?php csrf_field(); ?>
+            <input type="hidden" name="_filter_search" value="<?= $filterSearch ?>">
+            <input type="hidden" name="_filter_sort" value="<?= $filterSort ?>">
+            <input type="hidden" name="_filter_status" value="<?= $filterStatus ?>">
 
             <div class="form-grid">
                 <div>
                     <label class="label">Approved Event</label>
-                    <select class="input" name="eventID" required>
+                    <select class="input" name="eventID" id="achievementEventID" required>
                         <option value="">Select event</option>
                         <?php foreach ($approvedEvents as $ev): ?>
                             <?php $eventId = (int) ($ev['eventID'] ?? 0); ?>
-                            <option value="<?= htmlspecialchars((string) $eventId, ENT_QUOTES, 'UTF-8') ?>" <?= $eventId === $selectedEventID ? 'selected' : '' ?>>
+                            <option
+                                value="<?= htmlspecialchars((string) $eventId, ENT_QUOTES, 'UTF-8') ?>"
+                                data-category="<?= htmlspecialchars((string) ($ev['eventType'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                <?= $eventId === $selectedEventID ? 'selected' : '' ?>>
                                 <?= htmlspecialchars((string) ($ev['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($ev['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars((string) ($ev['eventDate'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>)
                             </option>
                         <?php endforeach; ?>
@@ -73,8 +82,10 @@
                 </div>
 
                 <div>
-                    <label class="label">Category</label>
-                    <input class="input" type="text" name="category" value="<?= htmlspecialchars((string) ($achievement['category'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                    <label class="label">Category (Auto from Event)</label>
+                    <?php $categoryValue = (string) ($achievement['category'] ?? ''); ?>
+                    <input class="input" type="text" id="achievementCategoryDisplay" value="<?= htmlspecialchars($categoryValue !== '' ? $categoryValue : '-', ENT_QUOTES, 'UTF-8') ?>" disabled>
+                    <input type="hidden" name="category" id="achievementCategoryValue" value="<?= htmlspecialchars($categoryValue, ENT_QUOTES, 'UTF-8') ?>">
                 </div>
 
                 <div>
@@ -113,7 +124,7 @@
                     <?php endif; ?>
                 </div>
                 <button type="submit" class="btn">Save Changes</button>
-                <a href="index.php?url=achievement/index" class="btn btn-secondary">Cancel</a>
+                <a href="index.php?url=achievement/index&search=<?= $filterSearch ?>&sort=<?= $filterSort ?>&status=<?= $filterStatus ?>" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>
@@ -124,5 +135,27 @@
     </div>
 
 </div>
+
+<script>
+(function () {
+    var eventSelect = document.getElementById('achievementEventID');
+    var categoryDisplay = document.getElementById('achievementCategoryDisplay');
+    var categoryValue = document.getElementById('achievementCategoryValue');
+
+    if (!eventSelect || !categoryDisplay || !categoryValue) {
+        return;
+    }
+
+    function syncCategoryFromEvent() {
+        var selected = eventSelect.options[eventSelect.selectedIndex];
+        var category = selected ? (selected.getAttribute('data-category') || '').trim() : '';
+        categoryDisplay.value = category !== '' ? category : '-';
+        categoryValue.value = category;
+    }
+
+    eventSelect.addEventListener('change', syncCategoryFromEvent);
+    syncCategoryFromEvent();
+})();
+</script>
 
 <?php require "../app/views/layout/footer.php"; ?>

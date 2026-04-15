@@ -27,6 +27,29 @@ class EventController {
         exit();
     }
 
+    private function buildAdminListRedirectUrl() {
+        $params = ['url' => 'event/index'];
+        $search = trim((string) ($_POST['_filter_search'] ?? ''));
+        $sort = trim((string) ($_POST['_filter_sort'] ?? ''));
+        $status = trim((string) ($_POST['_filter_status'] ?? ''));
+        $page = isset($_POST['_filter_page']) ? (int) $_POST['_filter_page'] : 1;
+
+        if ($search !== '') {
+            $params['search'] = $search;
+        }
+        if ($sort !== '') {
+            $params['sort'] = $sort;
+        }
+        if ($status !== '') {
+            $params['status'] = $status;
+        }
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+
+        return 'index.php?' . http_build_query($params);
+    }
+
     private function normalizeEventType($value) {
         $type = trim((string) $value);
         $allowed = ['Leadership', 'Volunteerism', 'Academic', 'Technical', 'Sports', 'Community'];
@@ -47,6 +70,30 @@ class EventController {
         return $clubDefinition;
     }
 
+    private function parseCapacityWaitlistInput($participantCapacityInput, $waitlistEnabledInput, &$error) {
+        $participantCapacityText = trim((string) $participantCapacityInput);
+        $participantCapacity = null;
+
+        if ($participantCapacityText !== '') {
+            if (!ctype_digit($participantCapacityText) || (int) $participantCapacityText <= 0) {
+                $error = "Participant capacity must be a positive whole number.";
+            } else {
+                $participantCapacity = (int) $participantCapacityText;
+            }
+        }
+
+        $waitlistEnabled = !empty($waitlistEnabledInput) ? 1 : 0;
+
+        if ($error === null && $participantCapacity === null) {
+            $waitlistEnabled = 0;
+        }
+
+        return [
+            'participantCapacity' => $participantCapacity,
+            'waitlistEnabled' => $waitlistEnabled,
+        ];
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -57,6 +104,24 @@ class EventController {
 
         if ($this->isAdmin()) {
             $events = Event::getAllWithUser($search, $sort, $status);
+            $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+            if ($page < 1) {
+                $page = 1;
+            }
+            $perPage = 10;
+            $totalRecords = is_array($events) ? count($events) : 0;
+            $totalPages = max(1, (int) ceil($totalRecords / $perPage));
+            if ($page > $totalPages) {
+                $page = $totalPages;
+            }
+            $offset = ($page - 1) * $perPage;
+            $events = is_array($events) ? array_slice($events, $offset, $perPage) : [];
+            $pagination = [
+                'currentPage' => $page,
+                'perPage' => $perPage,
+                'totalRecords' => $totalRecords,
+                'totalPages' => $totalPages,
+            ];
             require "../app/views/admin/event_index.php";
             return;
         }
@@ -93,9 +158,14 @@ class EventController {
             $description = trim((string) ($_POST['description'] ?? ''));
             $reflection = trim((string) ($_POST['reflection'] ?? ''));
             $eventHours = isset($_POST['eventHours']) ? (float) $_POST['eventHours'] : 0.0;
+            $capacityData = $this->parseCapacityWaitlistInput(
+                $_POST['participantCapacity'] ?? '',
+                $_POST['waitlistEnabled'] ?? 0,
+                $error
+            );
 
             $clubDefinition = $this->resolvePostedClubCatalog($_POST['clubCatalogID'] ?? 0);
-            if (!$clubDefinition) {
+            if ($error === null && !$clubDefinition) {
                 $error = "Please select a valid active club.";
             }
 
@@ -105,6 +175,19 @@ class EventController {
 
             if ($error === null && $eventHours <= 0) {
                 $error = "Event hours must be greater than 0.";
+            }
+
+            if ($error === null && $capacityData['participantCapacity'] === null && $clubDefinition) {
+                $template = Event::findCapacityTemplate(
+                    (int) ($clubDefinition['clubCatalogID'] ?? 0),
+                    $eventTitle,
+                    $eventType,
+                    $eventDate
+                );
+                if ($template) {
+                    $capacityData['participantCapacity'] = (int) ($template['participantCapacity'] ?? 0);
+                    $capacityData['waitlistEnabled'] = !empty($template['waitlistEnabled']) ? 1 : 0;
+                }
             }
 
             $targetUserID = (int) $_SESSION['user_id'];
@@ -169,7 +252,9 @@ class EventController {
                     $reviewedBy,
                     null,
                     $reviewedAt,
-                    $evidencePath
+                    $evidencePath,
+                    $capacityData['participantCapacity'],
+                    $capacityData['waitlistEnabled']
                 );
 
                 $_SESSION['success'] = $this->isAdmin()
@@ -232,9 +317,14 @@ class EventController {
             $description = trim((string) ($_POST['description'] ?? ''));
             $reflection = trim((string) ($_POST['reflection'] ?? ''));
             $eventHours = isset($_POST['eventHours']) ? (float) $_POST['eventHours'] : 0.0;
+            $capacityData = $this->parseCapacityWaitlistInput(
+                $_POST['participantCapacity'] ?? '',
+                $_POST['waitlistEnabled'] ?? 0,
+                $error
+            );
 
             $clubDefinition = $this->resolvePostedClubCatalog($_POST['clubCatalogID'] ?? 0);
-            if (!$clubDefinition) {
+            if ($error === null && !$clubDefinition) {
                 $error = "Please select a valid active club.";
             }
 
@@ -244,6 +334,20 @@ class EventController {
 
             if ($error === null && $eventHours <= 0) {
                 $error = "Event hours must be greater than 0.";
+            }
+
+            if ($error === null && $capacityData['participantCapacity'] === null && $clubDefinition) {
+                $template = Event::findCapacityTemplate(
+                    (int) ($clubDefinition['clubCatalogID'] ?? 0),
+                    $eventTitle,
+                    $eventType,
+                    $eventDate,
+                    (int) $id
+                );
+                if ($template) {
+                    $capacityData['participantCapacity'] = (int) ($template['participantCapacity'] ?? 0);
+                    $capacityData['waitlistEnabled'] = !empty($template['waitlistEnabled']) ? 1 : 0;
+                }
             }
 
             $targetUserID = $this->isAdmin() ? (int) ($event['userID'] ?? 0) : $userID;
@@ -279,7 +383,9 @@ class EventController {
                         $eventHours,
                         $location,
                         $description,
-                        $reflection === '' ? null : $reflection
+                        $reflection === '' ? null : $reflection,
+                        $capacityData['participantCapacity'],
+                        $capacityData['waitlistEnabled']
                     );
                     if (isset($_POST['status'])) {
                         $status = (string) $_POST['status'];
@@ -304,7 +410,9 @@ class EventController {
                             $description,
                             $reflection === '' ? null : $reflection,
                             $upload['path'],
-                            $upload['uploaded']
+                            $upload['uploaded'],
+                            $capacityData['participantCapacity'],
+                            $capacityData['waitlistEnabled']
                         );
                         $_SESSION['success'] = "Event record updated and resubmitted for review.";
                     }
@@ -339,7 +447,7 @@ class EventController {
         header('Content-Disposition: attachment; filename="my_event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Capacity', 'Registered', 'Waitlist Enabled', 'Waitlist Count', 'Registration Status', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
@@ -351,6 +459,11 @@ class EventController {
                 $row['eventType'] ?? '',
                 $eventDate,
                 $row['eventHours'] ?? '',
+                $row['participantCapacity'] ?? '',
+                $row['registeredCount'] ?? 0,
+                !empty($row['waitlistEnabled']) ? 'Yes' : 'No',
+                $row['waitlistCount'] ?? 0,
+                $row['registrationStatus'] ?? '',
                 $row['location'] ?? '',
                 $row['description'] ?? '',
                 $row['reflection'] ?? '',
@@ -377,7 +490,7 @@ class EventController {
         header('Content-Disposition: attachment; filename="event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Capacity', 'Registered', 'Waitlist Enabled', 'Waitlist Count', 'Registration Status', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
@@ -392,6 +505,11 @@ class EventController {
                 $row['eventType'] ?? '',
                 $eventDate,
                 $row['eventHours'] ?? '',
+                $row['participantCapacity'] ?? '',
+                $row['registeredCount'] ?? 0,
+                !empty($row['waitlistEnabled']) ? 'Yes' : 'No',
+                $row['waitlistCount'] ?? 0,
+                $row['registrationStatus'] ?? '',
                 $row['location'] ?? '',
                 $row['description'] ?? '',
                 $row['reflection'] ?? '',
@@ -436,7 +554,10 @@ class EventController {
             }
         }
 
-        header("Location: index.php?url=event/index");
+        $redirectUrl = $this->isAdmin()
+            ? $this->buildAdminListRedirectUrl()
+            : "index.php?url=event/index";
+        header("Location: " . $redirectUrl);
         exit();
     }
 
@@ -459,7 +580,7 @@ class EventController {
             $_SESSION['success'] = "Event review status updated.";
         }
 
-        header("Location: index.php?url=event/index");
+        header("Location: " . $this->buildAdminListRedirectUrl());
         exit();
     }
 }

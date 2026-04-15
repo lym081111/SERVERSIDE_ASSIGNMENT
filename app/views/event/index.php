@@ -173,6 +173,10 @@
                         <option value="eventDate" <?= $currentSort === 'eventDate' ? 'selected' : '' ?>>Event Date</option>
                         <option value="eventHours" <?= $currentSort === 'eventHours' ? 'selected' : '' ?>>Event Hours</option>
                         <option value="location" <?= $currentSort === 'location' ? 'selected' : '' ?>>Location</option>
+                        <option value="participantCapacity" <?= $currentSort === 'participantCapacity' ? 'selected' : '' ?>>Capacity</option>
+                        <option value="registeredCount" <?= $currentSort === 'registeredCount' ? 'selected' : '' ?>>Registered Count</option>
+                        <option value="waitlistCount" <?= $currentSort === 'waitlistCount' ? 'selected' : '' ?>>Waitlist Count</option>
+                        <option value="registrationStatus" <?= $currentSort === 'registrationStatus' ? 'selected' : '' ?>>Registration Status</option>
                         <option value="status" <?= $currentSort === 'status' ? 'selected' : '' ?>>Status</option>
                     </select>
 
@@ -189,6 +193,7 @@
                 </form>
             </div>
 
+            <div class="records-table-wrap">
             <table class="co-records-table">
                 <tr>
                     <th>Club</th>
@@ -196,6 +201,8 @@
                     <th>Type</th>
                     <th>Date</th>
                     <th>Hours</th>
+                    <th>Seats</th>
+                    <th>Registration</th>
                     <th>Location</th>
                     <th>Summary</th>
                     <th>Reflection</th>
@@ -205,7 +212,7 @@
 
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="10" class="muted">No event records found.</td>
+                        <td colspan="12" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -217,6 +224,22 @@
                     $reviewNote = trim((string) ($e['review_note'] ?? ''));
                     $evidencePath = trim((string) ($e['evidence_path'] ?? ''));
                     $isLocked = $status === 'approved';
+                    $participantCapacity = isset($e['participantCapacity']) ? (int) $e['participantCapacity'] : 0;
+                    $registeredCount = isset($e['registeredCount']) ? (int) $e['registeredCount'] : 0;
+                    $waitlistCount = isset($e['waitlistCount']) ? (int) $e['waitlistCount'] : 0;
+                    $registrationStatus = trim((string) ($e['registrationStatus'] ?? ''));
+                    if ($registrationStatus === '') {
+                        if ($participantCapacity <= 0 || $registeredCount < $participantCapacity) {
+                            $registrationStatus = 'open';
+                        } elseif (!empty($e['waitlistEnabled'])) {
+                            $registrationStatus = 'waitlist';
+                        } else {
+                            $registrationStatus = 'full';
+                        }
+                    }
+                    $seatSummary = $participantCapacity > 0
+                        ? ($registeredCount . '/' . $participantCapacity)
+                        : 'Unlimited';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars((string) ($e['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
@@ -226,6 +249,15 @@
                     </td>
                     <td><?= htmlspecialchars($eventDateDisplay !== '' ? $eventDateDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars((string) ($e['eventHours'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>
+                        <?= htmlspecialchars($seatSummary, ENT_QUOTES, 'UTF-8') ?>
+                        <?php if ($participantCapacity > 0): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">Waitlist: <?= (int) $waitlistCount ?></div>
+                        <?php endif; ?>
+                    </td>
+                    <td>
+                        <span class="chip"><?= htmlspecialchars(ucfirst($registrationStatus), ENT_QUOTES, 'UTF-8') ?></span>
+                    </td>
                     <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>
@@ -266,6 +298,7 @@
                 <?php endforeach; ?>
 
             </table>
+            </div>
         </div>
 
         <div class="side-stack">

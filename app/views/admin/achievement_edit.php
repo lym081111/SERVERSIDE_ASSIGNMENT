@@ -83,11 +83,14 @@
                 <div class="form-grid">
                     <div>
                         <label class="label">Approved Event</label>
-                        <select class="input" name="eventID" required>
+                        <select class="input" name="eventID" id="achievementEventID" required>
                             <option value="">Select event</option>
                             <?php foreach ($approvedEvents as $ev): ?>
                                 <?php $eventId = (int) ($ev['eventID'] ?? 0); ?>
-                                <option value="<?= htmlspecialchars((string) $eventId, ENT_QUOTES, 'UTF-8') ?>" <?= $eventId === $selectedEventID ? 'selected' : '' ?>>
+                                <option
+                                    value="<?= htmlspecialchars((string) $eventId, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-category="<?= htmlspecialchars((string) ($ev['eventType'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                    <?= $eventId === $selectedEventID ? 'selected' : '' ?>>
                                     <?= htmlspecialchars((string) ($ev['eventTitle'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($ev['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>, <?= htmlspecialchars((string) ($ev['eventDate'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>)
                                 </option>
                             <?php endforeach; ?>
@@ -100,8 +103,9 @@
                     </div>
 
                     <div>
-                        <label class="label">Category</label>
-                        <input class="input" type="text" name="category" value="<?= htmlspecialchars((string) ($achievement['category'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                        <label class="label">Category (Auto from Event)</label>
+                        <input class="input" type="text" id="achievementCategoryDisplay" value="<?= htmlspecialchars((string) (($achievement['category'] ?? '') !== '' ? $achievement['category'] : '-'), ENT_QUOTES, 'UTF-8') ?>" disabled>
+                        <input type="hidden" name="category" id="achievementCategoryValue" value="<?= htmlspecialchars((string) ($achievement['category'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                     </div>
 
                     <div>
@@ -154,5 +158,27 @@
     </div>
 
 </div>
+
+<script>
+(function () {
+    var eventSelect = document.getElementById('achievementEventID');
+    var categoryDisplay = document.getElementById('achievementCategoryDisplay');
+    var categoryValue = document.getElementById('achievementCategoryValue');
+
+    if (!eventSelect || !categoryDisplay || !categoryValue) {
+        return;
+    }
+
+    function syncCategoryFromEvent() {
+        var selected = eventSelect.options[eventSelect.selectedIndex];
+        var category = selected ? (selected.getAttribute('data-category') || '').trim() : '';
+        categoryDisplay.value = category !== '' ? category : '-';
+        categoryValue.value = category;
+    }
+
+    eventSelect.addEventListener('change', syncCategoryFromEvent);
+    syncCategoryFromEvent();
+})();
+</script>
 
 <?php require "../app/views/layout/footer.php"; ?>

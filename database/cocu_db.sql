@@ -117,6 +117,10 @@ CREATE TABLE `events` (
   `eventType` varchar(50) DEFAULT NULL,
   `eventDate` date NOT NULL,
   `eventHours` decimal(6,2) NOT NULL DEFAULT 1.00,
+  `participantCapacity` int(11) DEFAULT NULL,
+  `registeredCount` int(11) NOT NULL DEFAULT 0,
+  `waitlistEnabled` tinyint(1) NOT NULL DEFAULT 1,
+  `waitlistCount` int(11) NOT NULL DEFAULT 0,
   `location` varchar(150) DEFAULT NULL,
   `description` text DEFAULT NULL,
   `reflection` text DEFAULT NULL,
@@ -275,6 +279,9 @@ ALTER TABLE `events`
   ADD PRIMARY KEY (`eventID`),
   ADD KEY `userID` (`userID`),
   ADD KEY `idx_events_clubCatalogID` (`clubCatalogID`),
+  ADD KEY `idx_events_capacity` (`participantCapacity`),
+  ADD KEY `idx_events_registered` (`registeredCount`),
+  ADD KEY `idx_events_waitlist` (`waitlistCount`),
   ADD KEY `reviewed_by` (`reviewed_by`),
   ADD KEY `status` (`status`);
 

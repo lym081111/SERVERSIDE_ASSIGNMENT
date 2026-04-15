@@ -315,6 +315,18 @@
                 <section class="certificate-title-wrap">
                     <h2>Certificate of Merit Achievement</h2>
                     <div class="certificate-subtitle">Issued for Verified Co-Curricular Excellence</div>
+                    <?php
+                        $milestoneHours = (int) ($certificate['milestone_hours'] ?? 0);
+                        $certStars = min(5, max(1, (int) floor($milestoneHours / 100)));
+                    ?>
+                    <div style="margin-top:10px; font-size:1.9rem; letter-spacing:5px;">
+                        <?php for ($cs = 1; $cs <= 5; $cs++): ?>
+                            <span style="color:<?= $cs <= $certStars ? '#f59e0b' : 'rgba(15,23,42,0.15)' ?>; text-shadow:<?= $cs <= $certStars ? '0 2px 6px rgba(245,158,11,0.5)' : 'none' ?>;">&#9733;</span>
+                        <?php endfor; ?>
+                    </div>
+                    <div style="margin-top:4px; color:#475569; font-size:0.82rem; letter-spacing:0.08em; text-transform:uppercase; font-weight:700;">
+                        <?= (int) $certStars ?>-Star Merit Milestone
+                    </div>
                 </section>
 
                 <section class="recipient-block">

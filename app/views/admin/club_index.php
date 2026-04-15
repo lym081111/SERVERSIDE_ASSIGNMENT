@@ -34,6 +34,25 @@
             $exportParams['status'] = (string) $_GET['status'];
         }
         $exportUrl = 'index.php?' . http_build_query($exportParams);
+
+        $currentPage = max(1, (int) ($pagination['currentPage'] ?? 1));
+        $totalPages = max(1, (int) ($pagination['totalPages'] ?? 1));
+        $totalRecords = max(0, (int) ($pagination['totalRecords'] ?? (is_array($clubs) ? count($clubs) : 0)));
+        $perPage = max(1, (int) ($pagination['perPage'] ?? 10));
+        $startRecord = $totalRecords > 0 ? (($currentPage - 1) * $perPage) + 1 : 0;
+        $endRecord = $totalRecords > 0 ? min($totalRecords, $currentPage * $perPage) : 0;
+        $paginationParams = ['url' => 'club/index'];
+        if (!empty($_GET['search'])) {
+            $paginationParams['search'] = (string) $_GET['search'];
+        }
+        if (!empty($_GET['sort'])) {
+            $paginationParams['sort'] = (string) $_GET['sort'];
+        }
+        if (!empty($_GET['status'])) {
+            $paginationParams['status'] = (string) $_GET['status'];
+        }
+        $pageWindowStart = max(1, $currentPage - 2);
+        $pageWindowEnd = min($totalPages, $currentPage + 2);
     ?>
 
     <div class="print-title">Club Records (Admin)</div>
@@ -46,6 +65,7 @@
         </div>
         <div class="admin-hero-actions">
             <a class="btn" href="index.php?url=club/create">Manage Club Catalog</a>
+            <a class="btn" href="index.php?url=club/addStudent">Add Club for Student</a>
             <a class="btn btn-secondary no-print" href="<?= htmlspecialchars($exportUrl, ENT_QUOTES, 'UTF-8') ?>">Export CSV</a>
             <button class="btn btn-secondary" type="button" onclick="window.print()">Print</button>
             <a class="btn btn-secondary" href="index.php?url=club/index">Refresh</a>
@@ -110,9 +130,10 @@
     <div class="admin-section">
         <div class="admin-section-header">
             <h2 class="admin-section-title">All Club Records</h2>
-            <span class="admin-section-chip"><?= is_array($clubs) ? count($clubs) : 0 ?> total</span>
+            <span class="admin-section-chip"><?= (int) $totalRecords ?> total</span>
         </div>
         <div class="admin-section-body">
+            <div class="records-table-wrap">
             <table class="admin-table co-records-table">
                 <tr>
                     <th>Student</th>
@@ -164,6 +185,10 @@
                             <form method="POST" action="index.php?url=club/review" class="review-form">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <select name="status" class="input">
                                     <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
                                     <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?>>Approved</option>
@@ -184,6 +209,10 @@
                             <form method="POST" action="index.php?url=club/delete" style="display:inline;">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <button type="submit" class="link danger" onclick="return confirm('Delete this club record?')">
                                     Delete
                                 </button>
@@ -192,6 +221,42 @@
                     </tr>
                 <?php endforeach; ?>
             </table>
+            </div>
+            <div class="pagination-bar">
+                <div class="pagination-meta">
+                    Showing <?= (int) $startRecord ?>-<?= (int) $endRecord ?> of <?= (int) $totalRecords ?>
+                </div>
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination-links">
+                        <?php
+                            $prevParams = $paginationParams;
+                            $prevParams['page'] = max(1, $currentPage - 1);
+                            $nextParams = $paginationParams;
+                            $nextParams['page'] = min($totalPages, $currentPage + 1);
+                        ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage <= 1 ? 'disabled' : '' ?>"
+                            <?= $currentPage <= 1 ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($prevParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Previous
+                        </a>
+                        <?php for ($pageNo = $pageWindowStart; $pageNo <= $pageWindowEnd; $pageNo++): ?>
+                            <?php $pageParams = $paginationParams; $pageParams['page'] = $pageNo; ?>
+                            <a
+                                class="btn btn-secondary <?= $pageNo === $currentPage ? 'active' : '' ?>"
+                                href="index.php?<?= htmlspecialchars(http_build_query($pageParams), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= (int) $pageNo ?>
+                            </a>
+                        <?php endfor; ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                            <?= $currentPage >= $totalPages ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($nextParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Next
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 

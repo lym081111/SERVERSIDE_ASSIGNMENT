@@ -27,6 +27,29 @@ class ClubController {
         exit();
     }
 
+    private function buildAdminListRedirectUrl() {
+        $params = ['url' => 'club/index'];
+        $search = trim((string) ($_POST['_filter_search'] ?? ''));
+        $sort = trim((string) ($_POST['_filter_sort'] ?? ''));
+        $status = trim((string) ($_POST['_filter_status'] ?? ''));
+        $page = isset($_POST['_filter_page']) ? (int) $_POST['_filter_page'] : 1;
+
+        if ($search !== '') {
+            $params['search'] = $search;
+        }
+        if ($sort !== '') {
+            $params['sort'] = $sort;
+        }
+        if ($status !== '') {
+            $params['status'] = $status;
+        }
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+
+        return 'index.php?' . http_build_query($params);
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -37,6 +60,24 @@ class ClubController {
 
         if ($this->isAdmin()) {
             $clubs = Club::getAllWithUser($search, $sort, $status);
+            $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+            if ($page < 1) {
+                $page = 1;
+            }
+            $perPage = 10;
+            $totalRecords = is_array($clubs) ? count($clubs) : 0;
+            $totalPages = max(1, (int) ceil($totalRecords / $perPage));
+            if ($page > $totalPages) {
+                $page = $totalPages;
+            }
+            $offset = ($page - 1) * $perPage;
+            $clubs = is_array($clubs) ? array_slice($clubs, $offset, $perPage) : [];
+            $pagination = [
+                'currentPage' => $page,
+                'perPage' => $perPage,
+                'totalRecords' => $totalRecords,
+                'totalPages' => $totalPages,
+            ];
             $catalogSearch = isset($_GET['catalog_search']) ? trim((string) $_GET['catalog_search']) : null;
             $clubCatalog = ClubCatalog::getAll($catalogSearch);
             require "../app/views/admin/club_index.php";
@@ -198,6 +239,104 @@ class ClubController {
         }
 
         require "../app/views/club/create.php";
+    }
+
+    public function addStudent() {
+
+        $this->checkAdmin();
+
+        $error = null;
+        $students = User::getAll();
+        $clubCatalog = ClubCatalog::getAllActive();
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+
+            verify_csrf();
+
+            $selection = User::resolveStudentSelectionForAdmin(
+                $_POST['studentID'] ?? 0,
+                $_POST['studentEmail'] ?? '',
+                $_POST['studentId'] ?? ''
+            );
+            $targetUserID = (int) ($selection['userID'] ?? 0);
+            if ($targetUserID <= 0) {
+                $error = (string) ($selection['error'] ?? 'Please select a valid student.');
+            }
+
+            $clubCatalogID = isset($_POST['clubCatalogID']) ? (int) $_POST['clubCatalogID'] : 0;
+            $clubDefinition = ClubCatalog::findById($clubCatalogID);
+            if ($error === null && (!$clubDefinition || (int) ($clubDefinition['is_active'] ?? 0) !== 1)) {
+                $error = "Please select a valid active club from the catalog.";
+            }
+
+            $clubName = trim((string) ($clubDefinition['clubName'] ?? ''));
+            $requestType = isset($_POST['requestType']) && $_POST['requestType'] === 'role_change'
+                ? 'role_change'
+                : 'join';
+            $role = 'Member';
+            if ($requestType === 'role_change') {
+                $desiredRole = trim((string) ($_POST['desiredRole'] ?? ''));
+                if ($error === null && ($desiredRole === '' || strcasecmp($desiredRole, 'Member') === 0)) {
+                    $error = "Please enter a higher role (for example: Secretary, Treasurer).";
+                } else {
+                    $role = $desiredRole;
+                }
+            }
+
+            $startDate = trim((string) ($_POST['startDate'] ?? ''));
+            $endDate = trim((string) ($_POST['endDate'] ?? ''));
+            $startDate = ($startDate === '' || $startDate === '0000-00-00') ? '' : $startDate;
+            $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '' : $endDate;
+            if ($error === null && $startDate === '') {
+                $error = "Start date is required.";
+            }
+            if ($error === null && $endDate !== '' && $endDate < $startDate) {
+                $error = "End date must be on or after start date.";
+            }
+
+            if ($error === null && $requestType === 'join') {
+                if (Club::hasActiveApprovedMembership($targetUserID, $clubName)) {
+                    $error = "Selected student already has an active approved membership in this club.";
+                }
+            }
+
+            if ($error === null && $requestType === 'role_change') {
+                if (!Club::hasActiveApprovedMembership($targetUserID, $clubName)) {
+                    $error = "Selected student must have an approved active membership before assigning a higher role.";
+                }
+            }
+
+            $roleDescription = trim((string) ($_POST['roleDescription'] ?? ''));
+
+            if ($error === null) {
+                $reviewedBy = (int) ($_SESSION['user_id'] ?? 0);
+                $reviewedAt = date('Y-m-d H:i:s');
+                Club::create(
+                    $targetUserID,
+                    $clubName,
+                    $role,
+                    $roleDescription,
+                    $requestType,
+                    $startDate === '' ? null : $startDate,
+                    $endDate === '' ? null : $endDate,
+                    'approved',
+                    $reviewedBy,
+                    'Created by admin',
+                    $reviewedAt,
+                    null
+                );
+
+                if ($requestType === 'role_change') {
+                    Club::closePreviousApprovedRole($targetUserID, $clubName, $startDate);
+                }
+
+                $_SESSION['success'] = "Club record added for student and approved.";
+                header("Location: index.php?url=club/index");
+                exit();
+            }
+        }
+
+        require "../app/views/admin/club_add_student.php";
     }
 
     public function edit() {
@@ -470,7 +609,10 @@ class ClubController {
             }
         }
 
-        header("Location: index.php?url=club/index");
+        $redirectUrl = $this->isAdmin()
+            ? $this->buildAdminListRedirectUrl()
+            : "index.php?url=club/index";
+        header("Location: " . $redirectUrl);
         exit();
     }
 
@@ -490,14 +632,14 @@ class ClubController {
 
         if ($id <= 0) {
             $_SESSION['error'] = "Invalid club record.";
-            header("Location: index.php?url=club/index");
+            header("Location: " . $this->buildAdminListRedirectUrl());
             exit();
         }
 
         $club = Club::findById($id);
         if (!$club) {
             $_SESSION['error'] = "Club record not found.";
-            header("Location: index.php?url=club/index");
+            header("Location: " . $this->buildAdminListRedirectUrl());
             exit();
         }
 
@@ -516,7 +658,7 @@ class ClubController {
 
         $_SESSION['success'] = "Club review status updated.";
 
-        header("Location: index.php?url=club/index");
+        header("Location: " . $this->buildAdminListRedirectUrl());
         exit();
     }
 

@@ -479,6 +479,9 @@
                         <div class="transcript-badges">
                             <span class="transcript-chip">Transcript No: <?= htmlspecialchars($transcriptNumber, ENT_QUOTES, 'UTF-8') ?></span>
                             <span class="transcript-chip">Issued: <?= htmlspecialchars($issuedLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php if (!empty($approvedAchievements)): ?>
+                                <span title="Star of Achievements" style="color: #f59e0b; font-size: 1.8rem; margin-left: 6px; display: inline-block; vertical-align: middle;">&#9733;</span>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </header>

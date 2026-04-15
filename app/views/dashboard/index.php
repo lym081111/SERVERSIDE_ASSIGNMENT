@@ -173,6 +173,9 @@
                     </div>
                 </div>
                 <a href="index.php?url=event/index" class="btn btn-pill">Access Module</a>
+                <div style="margin-top:10px;">
+                    <a class="link" href="index.php?url=event/create">Quick Add Event Record</a>
+                </div>
             </div>
 
             <div class="module-card merit">

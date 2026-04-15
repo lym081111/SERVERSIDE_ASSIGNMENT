@@ -35,25 +35,29 @@
         }
         $exportUrl = 'index.php?' . http_build_query($exportParams);
 
-        $pendingCount = 0;
-        $approvedCount = 0;
-        $rejectedCount = 0;
-        $appealedCount = 0;
-        if (is_array($merits)) {
-            foreach ($merits as $row) {
-                $statusCountValue = (string) ($row['status'] ?? 'pending');
-                if ($statusCountValue === 'approved') {
-                    $approvedCount++;
-                } elseif ($statusCountValue === 'rejected') {
-                    $rejectedCount++;
-                } else {
-                    $pendingCount++;
-                }
-                if ((int) ($row['resubmission_count'] ?? 0) > 0) {
-                    $appealedCount++;
-                }
-            }
+        $pendingCount = (int) ($meritStats['pending'] ?? 0);
+        $approvedCount = (int) ($meritStats['approved'] ?? 0);
+        $rejectedCount = (int) ($meritStats['rejected'] ?? 0);
+        $appealedCount = (int) ($meritStats['appealed'] ?? 0);
+
+        $currentPage = max(1, (int) ($pagination['currentPage'] ?? 1));
+        $totalPages = max(1, (int) ($pagination['totalPages'] ?? 1));
+        $totalRecords = max(0, (int) ($pagination['totalRecords'] ?? (is_array($merits) ? count($merits) : 0)));
+        $perPage = max(1, (int) ($pagination['perPage'] ?? 10));
+        $startRecord = $totalRecords > 0 ? (($currentPage - 1) * $perPage) + 1 : 0;
+        $endRecord = $totalRecords > 0 ? min($totalRecords, $currentPage * $perPage) : 0;
+        $paginationParams = ['url' => 'merit/index'];
+        if (!empty($_GET['search'])) {
+            $paginationParams['search'] = (string) $_GET['search'];
         }
+        if (!empty($_GET['sort'])) {
+            $paginationParams['sort'] = (string) $_GET['sort'];
+        }
+        if (!empty($_GET['status'])) {
+            $paginationParams['status'] = (string) $_GET['status'];
+        }
+        $pageWindowStart = max(1, $currentPage - 2);
+        $pageWindowEnd = min($totalPages, $currentPage + 2);
 
         $sourceLabelMap = [
             'student_submission' => 'Student Submission',
@@ -164,9 +168,10 @@
     <div class="admin-section">
         <div class="admin-section-header">
             <h2 class="admin-section-title">All Merit Records</h2>
-            <span class="admin-section-chip"><?= is_array($merits) ? count($merits) : 0 ?> total</span>
+            <span class="admin-section-chip"><?= (int) $totalRecords ?> total</span>
         </div>
         <div class="admin-section-body">
+            <div class="records-table-wrap">
             <table class="admin-table co-records-table">
                 <tr>
                     <th>Student</th>
@@ -237,6 +242,10 @@
                             <form method="POST" action="index.php?url=merit/review" class="review-form">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <select name="status" class="input">
                                     <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
                                     <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?>>Approved</option>
@@ -257,6 +266,10 @@
                             <form method="POST" action="index.php?url=merit/delete" style="display:inline;">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <button type="submit" class="link danger" onclick="return confirm('Delete this merit record?')">
                                     Delete
                                 </button>
@@ -320,6 +333,42 @@
                     </tr>
                 <?php endforeach; ?>
             </table>
+            </div>
+            <div class="pagination-bar">
+                <div class="pagination-meta">
+                    Showing <?= (int) $startRecord ?>-<?= (int) $endRecord ?> of <?= (int) $totalRecords ?>
+                </div>
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination-links">
+                        <?php
+                            $prevParams = $paginationParams;
+                            $prevParams['page'] = max(1, $currentPage - 1);
+                            $nextParams = $paginationParams;
+                            $nextParams['page'] = min($totalPages, $currentPage + 1);
+                        ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage <= 1 ? 'disabled' : '' ?>"
+                            <?= $currentPage <= 1 ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($prevParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Previous
+                        </a>
+                        <?php for ($pageNo = $pageWindowStart; $pageNo <= $pageWindowEnd; $pageNo++): ?>
+                            <?php $pageParams = $paginationParams; $pageParams['page'] = $pageNo; ?>
+                            <a
+                                class="btn btn-secondary <?= $pageNo === $currentPage ? 'active' : '' ?>"
+                                href="index.php?<?= htmlspecialchars(http_build_query($pageParams), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= (int) $pageNo ?>
+                            </a>
+                        <?php endfor; ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                            <?= $currentPage >= $totalPages ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($nextParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Next
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 

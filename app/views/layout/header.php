@@ -493,9 +493,77 @@
 
         .module-page .co-records-table th,
         .module-page .co-records-table td {
-            padding: 14px 16px;
-            font-size: 0.98rem;
-            line-height: 1.45;
+            padding: 10px 12px;
+            font-size: 0.92rem;
+            line-height: 1.35;
+        }
+
+        .records-table-wrap {
+            width: 100%;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            background: #ffffff;
+        }
+
+        .records-table-wrap .admin-table {
+            border: none;
+            border-radius: 0;
+            min-width: 1180px;
+        }
+
+        .records-table-wrap .co-records-table {
+            border: none;
+            border-radius: 0;
+            min-width: 1280px;
+        }
+
+        .records-table-wrap .admin-table th,
+        .records-table-wrap .admin-table td,
+        .records-table-wrap .co-records-table th,
+        .records-table-wrap .co-records-table td {
+            word-break: break-word;
+        }
+
+        .pagination-bar {
+            margin-top: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-meta {
+            font-size: 0.86rem;
+            color: var(--muted);
+            font-weight: 600;
+        }
+
+        .pagination-links {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .pagination-links .btn {
+            padding: 7px 11px;
+            font-size: 0.86rem;
+            border-radius: 8px;
+            line-height: 1.2;
+        }
+
+        .pagination-links .btn.active {
+            background: #0f172a;
+            color: #ffffff;
+            border-color: #0f172a;
+        }
+
+        .pagination-links .btn.disabled,
+        .pagination-links .btn[aria-disabled="true"] {
+            pointer-events: none;
+            opacity: 0.5;
         }
 
         .module-page .admin-kpi-grid {
@@ -1168,11 +1236,12 @@
         .review-form {
             display: grid;
             grid-template-columns: minmax(140px, 1fr);
-            gap: 8px;
+            gap: 6px;
         }
 
         .review-form .btn {
-            padding: 8px 10px;
+            padding: 7px 9px;
+            font-size: 0.86rem;
         }
 
         .form-grid {

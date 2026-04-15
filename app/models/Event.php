@@ -2,8 +2,51 @@
 
 class Event {
 
+    public static function findCapacityTemplate($clubCatalogID, $eventTitle, $eventType, $eventDate, $excludeEventID = null) {
+        $db = Database::connect();
+
+        $sql = "SELECT participantCapacity, waitlistEnabled
+                FROM events
+                WHERE clubCatalogID = ?
+                  AND eventDate = ?
+                  AND LOWER(TRIM(eventTitle)) = LOWER(TRIM(?))
+                  AND LOWER(TRIM(COALESCE(eventType, ''))) = LOWER(TRIM(?))
+                  AND participantCapacity IS NOT NULL
+                  AND participantCapacity > 0
+                  AND status IN ('pending', 'approved')";
+        $params = [
+            (int) $clubCatalogID,
+            (string) $eventDate,
+            (string) $eventTitle,
+            (string) $eventType,
+        ];
+
+        if ($excludeEventID !== null) {
+            $sql .= " AND eventID <> ?";
+            $params[] = (int) $excludeEventID;
+        }
+
+        $sql .= " ORDER BY eventID ASC LIMIT 1";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute($params);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
     public static function getByUser($userID, $search = null, $sort = null, $status = null) {
         $db = Database::connect();
+        $registeredCountSql = "(SELECT COUNT(*)
+                                FROM events e_reg
+                                WHERE e_reg.status = 'approved'
+                                  AND e_reg.eventDate = e.eventDate
+                                  AND e_reg.clubCatalogID <=> e.clubCatalogID
+                                  AND LOWER(TRIM(e_reg.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
+        $pendingCountSql = "(SELECT COUNT(*)
+                             FROM events e_pending
+                             WHERE e_pending.status = 'pending'
+                               AND e_pending.eventDate = e.eventDate
+                               AND e_pending.clubCatalogID <=> e.clubCatalogID
+                               AND LOWER(TRIM(e_pending.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
 
         $allowedSort = [
             'eventID' => 'e.eventID',
@@ -14,11 +57,26 @@ class Event {
             'eventHours' => 'e.eventHours',
             'location' => 'e.location',
             'status' => 'e.status',
+            'participantCapacity' => 'e.participantCapacity',
+            'registeredCount' => 'registeredCount',
+            'waitlistCount' => 'waitlistCount',
+            'registrationStatus' => 'registrationStatus',
         ];
 
         $sortColumn = $allowedSort[$sort] ?? 'e.eventID';
 
-        $sql = "SELECT e.*, cc.clubName AS clubName
+        $sql = "SELECT e.*, cc.clubName AS clubName,
+                       {$registeredCountSql} AS registeredCount,
+                       CASE
+                           WHEN COALESCE(e.waitlistEnabled, 1) = 1 THEN {$pendingCountSql}
+                           ELSE 0
+                       END AS waitlistCount,
+                       CASE
+                           WHEN COALESCE(e.participantCapacity, 0) <= 0 THEN 'open'
+                           WHEN {$registeredCountSql} < e.participantCapacity THEN 'open'
+                           WHEN COALESCE(e.waitlistEnabled, 1) = 1 THEN 'waitlist'
+                           ELSE 'full'
+                       END AS registrationStatus
                 FROM events e
                 LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
                 WHERE e.userID = ?";
@@ -26,8 +84,8 @@ class Event {
 
         if ($search !== null && $search !== '') {
             $term = '%' . $search . '%';
-            $sql .= " AND (e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR e.reflection LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ?)";
-            array_push($params, $term, $term, $term, $term, $term, $term, $term, $term);
+            $sql .= " AND (e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR e.reflection LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ? OR CAST(e.participantCapacity AS CHAR) LIKE ?)";
+            array_push($params, $term, $term, $term, $term, $term, $term, $term, $term, $term);
         }
 
         $allowedStatus = ['pending', 'approved', 'rejected'];
@@ -45,6 +103,18 @@ class Event {
 
     public static function getAllWithUser($search = null, $sort = null, $status = null) {
         $db = Database::connect();
+        $registeredCountSql = "(SELECT COUNT(*)
+                                FROM events e_reg
+                                WHERE e_reg.status = 'approved'
+                                  AND e_reg.eventDate = e.eventDate
+                                  AND e_reg.clubCatalogID <=> e.clubCatalogID
+                                  AND LOWER(TRIM(e_reg.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
+        $pendingCountSql = "(SELECT COUNT(*)
+                             FROM events e_pending
+                             WHERE e_pending.status = 'pending'
+                               AND e_pending.eventDate = e.eventDate
+                               AND e_pending.clubCatalogID <=> e.clubCatalogID
+                               AND LOWER(TRIM(e_pending.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
 
         $allowedSort = [
             'eventID' => 'e.eventID',
@@ -57,11 +127,26 @@ class Event {
             'student' => 'u.name',
             'student_id' => 'u.student_id',
             'status' => 'e.status',
+            'participantCapacity' => 'e.participantCapacity',
+            'registeredCount' => 'registeredCount',
+            'waitlistCount' => 'waitlistCount',
+            'registrationStatus' => 'registrationStatus',
         ];
 
         $sortColumn = $allowedSort[$sort] ?? 'e.eventID';
 
-        $sql = "SELECT e.*, u.name AS userName, u.email AS userEmail, u.student_id AS studentId, cc.clubName AS clubName
+        $sql = "SELECT e.*, u.name AS userName, u.email AS userEmail, u.student_id AS studentId, cc.clubName AS clubName,
+                       {$registeredCountSql} AS registeredCount,
+                       CASE
+                           WHEN COALESCE(e.waitlistEnabled, 1) = 1 THEN {$pendingCountSql}
+                           ELSE 0
+                       END AS waitlistCount,
+                       CASE
+                           WHEN COALESCE(e.participantCapacity, 0) <= 0 THEN 'open'
+                           WHEN {$registeredCountSql} < e.participantCapacity THEN 'open'
+                           WHEN COALESCE(e.waitlistEnabled, 1) = 1 THEN 'waitlist'
+                           ELSE 'full'
+                       END AS registrationStatus
                 FROM events e
                 JOIN users u ON u.userID = e.userID
                 LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID";
@@ -70,8 +155,8 @@ class Event {
 
         if ($search !== null && $search !== '') {
             $t = '%' . $search . '%';
-            $conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR u.student_id LIKE ? OR e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR e.reflection LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ?)";
-            $params = array_merge($params, [$t, $t, $t, $t, $t, $t, $t, $t, $t, $t, $t]);
+            $conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR u.student_id LIKE ? OR e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR e.reflection LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ? OR CAST(e.participantCapacity AS CHAR) LIKE ?)";
+            $params = array_merge($params, [$t, $t, $t, $t, $t, $t, $t, $t, $t, $t, $t, $t]);
         }
 
         $allowedStatus = ['pending', 'approved', 'rejected'];
@@ -91,11 +176,11 @@ class Event {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public static function create($userID, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null) {
+    public static function create($userID, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null, $participantCapacity = null, $waitlistEnabled = 1) {
         $db = Database::connect();
         $stmt = $db->prepare(
-            "INSERT INTO events (userID, clubCatalogID, eventTitle, eventType, eventDate, eventHours, location, description, reflection, status, reviewed_by, review_note, reviewed_at, evidence_path)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO events (userID, clubCatalogID, eventTitle, eventType, eventDate, eventHours, location, description, reflection, status, reviewed_by, review_note, reviewed_at, evidence_path, participantCapacity, waitlistEnabled)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
         return $stmt->execute([
             (int) $userID,
@@ -112,6 +197,8 @@ class Event {
             $reviewNote,
             $reviewedAt,
             $evidencePath,
+            $participantCapacity !== null ? (int) $participantCapacity : null,
+            (int) ($waitlistEnabled ? 1 : 0),
         ]);
     }
 
@@ -154,7 +241,7 @@ class Event {
     public static function getApprovedByUser($userID) {
         $db = Database::connect();
         $stmt = $db->prepare(
-            "SELECT e.eventID, e.userID, e.clubCatalogID, e.eventTitle, e.eventDate, e.eventHours, e.status,
+            "SELECT e.eventID, e.userID, e.clubCatalogID, e.eventTitle, e.eventType, e.eventDate, e.eventHours, e.status,
                     cc.clubName
              FROM events e
              LEFT JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
@@ -168,7 +255,7 @@ class Event {
     public static function getApprovedAllWithUser() {
         $db = Database::connect();
         $stmt = $db->query(
-            "SELECT e.eventID, e.userID, e.clubCatalogID, e.eventTitle, e.eventDate, e.eventHours,
+            "SELECT e.eventID, e.userID, e.clubCatalogID, e.eventTitle, e.eventType, e.eventDate, e.eventHours,
                     u.name AS userName, u.student_id AS studentId,
                     cc.clubName
              FROM events e
@@ -180,11 +267,12 @@ class Event {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $userID, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null, $evidencePath = null, $replaceEvidence = false) {
+    public static function update($id, $userID, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null, $evidencePath = null, $replaceEvidence = false, $participantCapacity = null, $waitlistEnabled = 1) {
         $db = Database::connect();
         $stmt = $db->prepare(
             "UPDATE events
              SET clubCatalogID = ?, eventTitle = ?, eventType = ?, eventDate = ?, eventHours = ?, location = ?, description = ?, reflection = ?,
+                 participantCapacity = ?, waitlistEnabled = ?,
                  evidence_path = CASE WHEN ? = 1 THEN ? ELSE evidence_path END,
                  status = 'pending', reviewed_at = NULL, reviewed_by = NULL, review_note = NULL
              WHERE eventID = ? AND userID = ? AND status IN ('pending', 'rejected')"
@@ -198,6 +286,8 @@ class Event {
             $location,
             $description,
             $reflection,
+            $participantCapacity !== null ? (int) $participantCapacity : null,
+            (int) ($waitlistEnabled ? 1 : 0),
             $replaceEvidence ? 1 : 0,
             $evidencePath,
             (int) $id,
@@ -205,11 +295,12 @@ class Event {
         ]);
     }
 
-    public static function updateById($id, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null) {
+    public static function updateById($id, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null, $participantCapacity = null, $waitlistEnabled = 1) {
         $db = Database::connect();
         $stmt = $db->prepare(
             "UPDATE events
-             SET clubCatalogID = ?, eventTitle = ?, eventType = ?, eventDate = ?, eventHours = ?, location = ?, description = ?, reflection = ?
+             SET clubCatalogID = ?, eventTitle = ?, eventType = ?, eventDate = ?, eventHours = ?, location = ?, description = ?, reflection = ?,
+                 participantCapacity = ?, waitlistEnabled = ?
              WHERE eventID = ?"
         );
         return $stmt->execute([
@@ -221,6 +312,8 @@ class Event {
             $location,
             $description,
             $reflection,
+            $participantCapacity !== null ? (int) $participantCapacity : null,
+            (int) ($waitlistEnabled ? 1 : 0),
             (int) $id,
         ]);
     }

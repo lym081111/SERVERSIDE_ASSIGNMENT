@@ -27,6 +27,29 @@ class AchievementController {
         exit();
     }
 
+    private function buildAdminListRedirectUrl() {
+        $params = ['url' => 'achievement/index'];
+        $search = trim((string) ($_POST['_filter_search'] ?? ''));
+        $sort = trim((string) ($_POST['_filter_sort'] ?? ''));
+        $status = trim((string) ($_POST['_filter_status'] ?? ''));
+        $page = isset($_POST['_filter_page']) ? (int) $_POST['_filter_page'] : 1;
+
+        if ($search !== '') {
+            $params['search'] = $search;
+        }
+        if ($sort !== '') {
+            $params['sort'] = $sort;
+        }
+        if ($status !== '') {
+            $params['status'] = $status;
+        }
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+
+        return 'index.php?' . http_build_query($params);
+    }
+
     private function normalizeAchievementLevel($value) {
         $level = trim((string) $value);
         $allowed = ['Faculty', 'University', 'National', 'International'];
@@ -65,6 +88,24 @@ class AchievementController {
 
         if ($this->isAdmin()) {
             $achievements = Achievement::getAllWithUser($search, $sort, $status);
+            $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+            if ($page < 1) {
+                $page = 1;
+            }
+            $perPage = 10;
+            $totalRecords = is_array($achievements) ? count($achievements) : 0;
+            $totalPages = max(1, (int) ceil($totalRecords / $perPage));
+            if ($page > $totalPages) {
+                $page = $totalPages;
+            }
+            $offset = ($page - 1) * $perPage;
+            $achievements = is_array($achievements) ? array_slice($achievements, $offset, $perPage) : [];
+            $pagination = [
+                'currentPage' => $page,
+                'perPage' => $perPage,
+                'totalRecords' => $totalRecords,
+                'totalPages' => $totalPages,
+            ];
             require "../app/views/admin/achievement_index.php";
             return;
         }
@@ -159,7 +200,10 @@ class AchievementController {
             }
 
             $achievementLevel = $this->normalizeAchievementLevel($_POST['achievementLevel'] ?? 'Faculty');
-            $category = trim((string) ($_POST['category'] ?? ''));
+            $category = trim((string) ($event['eventType'] ?? ''));
+            if ($error === null && $category === '') {
+                $error = "Selected event does not have a category yet.";
+            }
             $description = trim((string) ($_POST['description'] ?? ''));
 
             $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
@@ -268,7 +312,10 @@ class AchievementController {
             }
 
             $achievementLevel = $this->normalizeAchievementLevel($_POST['achievementLevel'] ?? 'Faculty');
-            $category = trim((string) ($_POST['category'] ?? ''));
+            $category = trim((string) ($event['eventType'] ?? ''));
+            if ($error === null && $category === '') {
+                $error = "Selected event does not have a category yet.";
+            }
             $description = trim((string) ($_POST['description'] ?? ''));
 
             $dateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
@@ -316,7 +363,13 @@ class AchievementController {
                 }
 
                 if ($error === null) {
-                    header("Location: index.php?url=achievement/index");
+                    $editQs = http_build_query(array_filter([
+                        'url' => 'achievement/index',
+                        'search' => isset($_POST['_filter_search']) ? trim((string) $_POST['_filter_search']) : '',
+                        'sort' => isset($_POST['_filter_sort']) ? trim((string) $_POST['_filter_sort']) : '',
+                        'status' => isset($_POST['_filter_status']) ? trim((string) $_POST['_filter_status']) : '',
+                    ]));
+                    header("Location: index.php?" . $editQs);
                     exit();
                 }
             }
@@ -439,7 +492,10 @@ class AchievementController {
             }
         }
 
-        header("Location: index.php?url=achievement/index");
+        $redirectUrl = $this->isAdmin()
+            ? $this->buildAdminListRedirectUrl()
+            : "index.php?url=achievement/index";
+        header("Location: " . $redirectUrl);
         exit();
     }
 
@@ -462,7 +518,7 @@ class AchievementController {
             $_SESSION['success'] = "Achievement review status updated.";
         }
 
-        header("Location: index.php?url=achievement/index");
+        header("Location: " . $this->buildAdminListRedirectUrl());
         exit();
     }
 }

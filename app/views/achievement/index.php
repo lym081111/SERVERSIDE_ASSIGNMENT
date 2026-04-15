@@ -262,11 +262,14 @@
                         <?php if ($isLocked): ?>
                             <span class="muted">Locked after approval (admin only)</span>
                         <?php else: ?>
-                            <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>&search=<?= urlencode((string) ($_GET['search'] ?? '')) ?>&sort=<?= urlencode((string) ($_GET['sort'] ?? '')) ?>&status=<?= urlencode((string) ($_GET['status'] ?? '')) ?>">Edit</a>
                             <span class="muted">|</span>
                             <form method="POST" action="index.php?url=achievement/delete" style="display:inline;">
                                 <?php csrf_field(); ?>
                                 <input type="hidden" name="id" value="<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_search" value="<?= htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_sort" value="<?= htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                <input type="hidden" name="_filter_status" value="<?= htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
                                 <button type="submit" class="link danger" onclick="return confirm('Are you sure you want to delete this record?')">
                                     Delete
                                 </button>
@@ -280,6 +283,18 @@
         </div>
 
         <div class="side-stack">
+            <div class="card" style="background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%); color: #fff; border: none;">
+                <div class="card-header" style="margin-bottom:10px;">
+                    <h3 class="card-title" style="color:#fff; margin:0;">My Achievement Summary</h3>
+                </div>
+                <div style="color:rgba(255,255,255,0.88); font-size:0.93rem; margin-bottom:14px;">
+                    View a full breakdown of your approved achievements, levels, and milestone progress.
+                </div>
+                <div style="margin-top: 15px; display: flex; justify-content: flex-end; align-items: center; border-top: 1px solid rgba(255,255,255,0.28); padding-top: 10px;">
+                    <a class="btn btn-secondary" style="font-size: 0.85rem; display: inline-flex; align-items: center; gap: 5px;" href="index.php?url=achievement/summary">View Summary</a>
+                </div>
+            </div>
+
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Milestones</h3>

@@ -27,6 +27,29 @@ class MeritController {
         exit();
     }
 
+    private function buildAdminListRedirectUrl() {
+        $params = ['url' => 'merit/index'];
+        $search = trim((string) ($_POST['_filter_search'] ?? ''));
+        $sort = trim((string) ($_POST['_filter_sort'] ?? ''));
+        $status = trim((string) ($_POST['_filter_status'] ?? ''));
+        $page = isset($_POST['_filter_page']) ? (int) $_POST['_filter_page'] : 1;
+
+        if ($search !== '') {
+            $params['search'] = $search;
+        }
+        if ($sort !== '') {
+            $params['sort'] = $sort;
+        }
+        if ($status !== '') {
+            $params['status'] = $status;
+        }
+        if ($page > 1) {
+            $params['page'] = $page;
+        }
+
+        return 'index.php?' . http_build_query($params);
+    }
+
     private function appendCertificateMessage($baseMessage, $newCertificates) {
         if (!is_array($newCertificates) || empty($newCertificates)) {
             return $baseMessage;
@@ -61,6 +84,45 @@ class MeritController {
 
         if ($this->isAdmin()) {
             $merits = Merit::getAllWithUser($search, $sort, $status);
+            $meritStats = [
+                'pending' => 0,
+                'approved' => 0,
+                'rejected' => 0,
+                'appealed' => 0,
+            ];
+            if (is_array($merits)) {
+                foreach ($merits as $row) {
+                    $statusCountValue = (string) ($row['status'] ?? 'pending');
+                    if ($statusCountValue === 'approved') {
+                        $meritStats['approved']++;
+                    } elseif ($statusCountValue === 'rejected') {
+                        $meritStats['rejected']++;
+                    } else {
+                        $meritStats['pending']++;
+                    }
+                    if ((int) ($row['resubmission_count'] ?? 0) > 0) {
+                        $meritStats['appealed']++;
+                    }
+                }
+            }
+            $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
+            if ($page < 1) {
+                $page = 1;
+            }
+            $perPage = 10;
+            $totalRecords = is_array($merits) ? count($merits) : 0;
+            $totalPages = max(1, (int) ceil($totalRecords / $perPage));
+            if ($page > $totalPages) {
+                $page = $totalPages;
+            }
+            $offset = ($page - 1) * $perPage;
+            $merits = is_array($merits) ? array_slice($merits, $offset, $perPage) : [];
+            $pagination = [
+                'currentPage' => $page,
+                'perPage' => $perPage,
+                'totalRecords' => $totalRecords,
+                'totalPages' => $totalPages,
+            ];
             $recentStatusLogs = Merit::getRecentStatusLogs(20);
             require "../app/views/admin/merit_index.php";
             return;
@@ -425,7 +487,10 @@ class MeritController {
             }
         }
 
-        header("Location: index.php?url=merit/index");
+        $redirectUrl = $this->isAdmin()
+            ? $this->buildAdminListRedirectUrl()
+            : "index.php?url=merit/index";
+        header("Location: " . $redirectUrl);
         exit();
     }
 
@@ -460,7 +525,7 @@ class MeritController {
             $_SESSION['success'] = $successMessage;
         }
 
-        header("Location: index.php?url=merit/index");
+        header("Location: " . $this->buildAdminListRedirectUrl());
         exit();
     }
 }

@@ -142,10 +142,36 @@
                     <div class="summary-sub">Approved achievements only</div>
                 </div>
 
-                <div class="summary-card">
-                    <div class="summary-label">Encouragement</div>
-                    <div class="summary-sub" style="margin-top: 0; color:#1e293b;">
-                        <?= htmlspecialchars($encouragementMessage, ENT_QUOTES, 'UTF-8') ?>
+                <div class="summary-card" style="text-align:center;">
+                    <div class="summary-label">Milestone Stars</div>
+                    <?php
+                        $starMilestones = [3, 5, 10, 20];
+                        $earnedStars = 0;
+                        foreach ($starMilestones as $goal) {
+                            if ((int) $totalAchievements >= $goal) {
+                                $earnedStars++;
+                            }
+                        }
+                        if ((int) $totalAchievements > 20) {
+                            $earnedStars = 5;
+                        }
+                        $totalStars = 5;
+                        $starLabels = ['', '3 achievements', '5 achievements', '10 achievements', '20 achievements', '20+ achievements'];
+                    ?>
+                    <div style="font-size:2.4rem; letter-spacing:4px; margin: 10px 0 6px;">
+                        <?php for ($s = 1; $s <= $totalStars; $s++): ?>
+                            <span style="color:<?= $s <= $earnedStars ? '#f59e0b' : '#e2e8f0' ?>; text-shadow:<?= $s <= $earnedStars ? '0 1px 3px rgba(245,158,11,0.4)' : 'none' ?>;">&#9733;</span>
+                        <?php endfor; ?>
+                    </div>
+                    <div class="summary-sub" style="margin-top:4px; font-weight:700; color:#1e293b;">
+                        <?= (int) $earnedStars ?> / <?= (int) $totalStars ?> stars earned
+                    </div>
+                    <div class="summary-sub" style="margin-top:6px; color:#64748b; font-size:0.85rem;">
+                        <?php if ($earnedStars < $totalStars): ?>
+                            Next star at <?= htmlspecialchars((string) ($starLabels[$earnedStars + 1] ?? ''), ENT_QUOTES, 'UTF-8') ?>
+                        <?php else: ?>
+                            All milestones achieved!
+                        <?php endif; ?>
                     </div>
                 </div>
             </div>
