@@ -73,6 +73,49 @@
     .dashboard-shell .module-body {
         flex: 1;
     }
+
+    body.theme-dark .content.dashboard-shell {
+        background:
+            radial-gradient(circle at 10% 12%, rgba(59, 130, 246, 0.16), transparent 42%),
+            radial-gradient(circle at 90% 2%, rgba(56, 189, 248, 0.12), transparent 34%),
+            #020617;
+    }
+
+    body.theme-dark .dashboard-shell .page-header {
+        background: linear-gradient(135deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.96) 65%);
+        border-color: rgba(71, 85, 105, 0.6);
+    }
+
+    body.theme-dark .dashboard-shell .kpi-card {
+        border: 1px solid #334155;
+        box-shadow: 0 12px 30px rgba(2, 6, 23, 0.45);
+    }
+
+    body.theme-dark .dashboard-shell .kpi-card:nth-child(1) {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.2), #0f172a 58%);
+    }
+
+    body.theme-dark .dashboard-shell .kpi-card:nth-child(2) {
+        background: linear-gradient(135deg, rgba(8, 145, 178, 0.2), #0f172a 58%);
+    }
+
+    body.theme-dark .dashboard-shell .kpi-card:nth-child(3) {
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.2), #0f172a 58%);
+    }
+
+    body.theme-dark .dashboard-shell .kpi-card:nth-child(4) {
+        background: linear-gradient(135deg, rgba(202, 138, 4, 0.2), #0f172a 58%);
+    }
+
+    body.theme-dark .dashboard-shell .module-body,
+    body.theme-dark .dashboard-shell .module-meta,
+    body.theme-dark .dashboard-shell .module-meta-row {
+        color: #cbd5e1;
+    }
+
+    body.theme-dark .dashboard-shell .module-meta-row strong {
+        color: #f8fafc;
+    }
 </style>
 
 <div class="main">

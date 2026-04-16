@@ -1,3 +1,14 @@
+<?php
+    $themeCookieValue = strtolower((string) (
+        $_COOKIE['theme']
+        ?? $_COOKIE['site_theme']
+        ?? $_COOKIE['color_theme']
+        ?? $_COOKIE['mode']
+        ?? $_COOKIE['dark_mode']
+        ?? ''
+    ));
+    $isDarkTheme = in_array($themeCookieValue, ['dark', '1', 'true', 'on'], true);
+?>
 <!DOCTYPE html>
 <html>
 <head>
@@ -1386,6 +1397,196 @@
             border-color: rgba(153, 27, 27, 0.35);
         }
 
+        .global-theme-toggle {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 1200;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            border-radius: 999px;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            background: #0f172a;
+            color: #e2e8f0;
+            font: inherit;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 14px 30px rgba(2, 6, 23, 0.35);
+        }
+
+        .global-theme-toggle:hover {
+            background: #1e293b;
+        }
+
+        body.theme-dark {
+            --bg: #020617;
+            --card: #0f172a;
+            --border: #334155;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --primary: #60a5fa;
+            --danger: #f87171;
+            --grad: linear-gradient(135deg, #020617, #0f172a 42%, #1e293b);
+            --sidebar-grad:
+                radial-gradient(circle at top left, rgba(148, 163, 184, 0.2), transparent 36%),
+                linear-gradient(180deg, #020617 0%, #0f172a 48%, #111827 100%);
+        }
+
+        body.theme-dark .content.admin-content {
+            background: radial-gradient(circle at top, rgba(30, 41, 59, 0.45), transparent 55%);
+        }
+
+        body.theme-dark .admin-hero {
+            border-color: rgba(148, 163, 184, 0.26);
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.62), rgba(15, 23, 42, 0.96) 60%);
+        }
+
+        body.theme-dark .admin-eyebrow,
+        body.theme-dark .label {
+            color: #cbd5e1;
+        }
+
+        body.theme-dark .admin-subtitle,
+        body.theme-dark .page-subtitle,
+        body.theme-dark .module-body,
+        body.theme-dark .list-item-sub,
+        body.theme-dark .mix-row-sub,
+        body.theme-dark .pagination-meta,
+        body.theme-dark .kpi-label,
+        body.theme-dark .kpi-sub,
+        body.theme-dark .muted {
+            color: #94a3b8;
+        }
+
+        body.theme-dark .admin-section,
+        body.theme-dark .card,
+        body.theme-dark .kpi-card,
+        body.theme-dark .module-card,
+        body.theme-dark .list-item,
+        body.theme-dark .mix-row,
+        body.theme-dark .records-table-wrap {
+            background: #0f172a;
+            border-color: #334155;
+            box-shadow: 0 12px 28px rgba(2, 6, 23, 0.45);
+        }
+
+        body.theme-dark .module-card.merit,
+        body.theme-dark .module-card.event,
+        body.theme-dark .module-card.club,
+        body.theme-dark .module-card.achievement {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.75), rgba(15, 23, 42, 0.95) 60%);
+        }
+
+        body.theme-dark .admin-section-chip,
+        body.theme-dark .chip {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-color: #334155;
+        }
+
+        body.theme-dark .btn.btn-secondary {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-color: #334155;
+        }
+
+        body.theme-dark .btn.btn-secondary:hover {
+            background: #334155;
+            border-color: #475569;
+        }
+
+        body.theme-dark .pagination-links .btn.active {
+            background: #2563eb;
+            border-color: #2563eb;
+            color: #ffffff;
+        }
+
+        body.theme-dark table,
+        body.theme-dark .admin-table {
+            background: #0f172a;
+            border-color: #334155;
+        }
+
+        body.theme-dark th,
+        body.theme-dark td,
+        body.theme-dark .admin-table th,
+        body.theme-dark .admin-table td {
+            border-bottom-color: #334155;
+        }
+
+        body.theme-dark th,
+        body.theme-dark .admin-table th,
+        body.theme-dark .records-table-wrap .admin-table th,
+        body.theme-dark .records-table-wrap .co-records-table th {
+            background: #111827;
+            color: #e2e8f0;
+        }
+
+        body.theme-dark td,
+        body.theme-dark .admin-table td,
+        body.theme-dark .kpi-value,
+        body.theme-dark .card-title,
+        body.theme-dark .module-title,
+        body.theme-dark .list-item-title,
+        body.theme-dark .mix-row-header,
+        body.theme-dark .topbar-title,
+        body.theme-dark .page-title {
+            color: #e2e8f0;
+        }
+
+        body.theme-dark .input {
+            background: #111827;
+            color: #e2e8f0;
+            border-color: #334155;
+        }
+
+        body.theme-dark .input::placeholder {
+            color: #94a3b8;
+        }
+
+        body.theme-dark .input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+
+        body.theme-dark .success {
+            background: rgba(22, 101, 52, 0.2);
+            color: #bbf7d0;
+            border-color: rgba(34, 197, 94, 0.45);
+        }
+
+        body.theme-dark .error {
+            background: rgba(153, 27, 27, 0.2);
+            color: #fecaca;
+            border-color: rgba(248, 113, 113, 0.45);
+        }
+
+        body.theme-dark .status-badge.pending {
+            background: #334155;
+            color: #cbd5e1;
+            border-color: rgba(148, 163, 184, 0.35);
+        }
+
+        body.theme-dark .status-badge.warn {
+            background: rgba(154, 52, 18, 0.22);
+            color: #fdba74;
+            border-color: rgba(251, 146, 60, 0.35);
+        }
+
+        body.theme-dark .status-badge.approved {
+            background: rgba(22, 101, 52, 0.24);
+            color: #86efac;
+            border-color: rgba(34, 197, 94, 0.35);
+        }
+
+        body.theme-dark .status-badge.rejected {
+            background: rgba(153, 27, 27, 0.24);
+            color: #fca5a5;
+            border-color: rgba(248, 113, 113, 0.35);
+        }
+
         .print-title {
             display: none;
             font-size: 20px;
@@ -1403,7 +1604,8 @@
             .topbar-actions,
             .filter-bar,
             .admin-hero-actions,
-            .page-actions {
+            .page-actions,
+            .global-theme-toggle {
                 display: none !important;
             }
 
@@ -1443,6 +1645,49 @@
             }
         }
 
+        @media (max-width: 640px) {
+            .global-theme-toggle {
+                right: 14px;
+                bottom: 14px;
+                padding: 9px 12px;
+                font-size: 0.88rem;
+            }
+        }
+
     </style>
 </head>
-<body>
+<body class="<?= $isDarkTheme ? 'theme-dark' : '' ?>">
+    <button type="button" class="global-theme-toggle" id="global-theme-toggle">
+        <?= $isDarkTheme ? 'Light Theme' : 'Dark Theme' ?>
+    </button>
+    <script>
+        (function () {
+            var toggleButton = document.getElementById('global-theme-toggle');
+            var body = document.body;
+
+            if (!toggleButton || !body) {
+                return;
+            }
+
+            var applyTheme = function (isDarkEnabled) {
+                body.classList.toggle('theme-dark', isDarkEnabled);
+                toggleButton.textContent = isDarkEnabled ? 'Light Theme' : 'Dark Theme';
+            };
+
+            toggleButton.addEventListener('click', function () {
+                var isDarkEnabled = !body.classList.contains('theme-dark');
+                var themeValue = isDarkEnabled ? 'dark' : 'light';
+                var darkModeValue = isDarkEnabled ? '1' : '0';
+                var maxAge = 60 * 60 * 24 * 365;
+                var cookieBase = '; path=/; max-age=' + maxAge + '; SameSite=Lax';
+
+                document.cookie = 'theme=' + themeValue + cookieBase;
+                document.cookie = 'site_theme=' + themeValue + cookieBase;
+                document.cookie = 'color_theme=' + themeValue + cookieBase;
+                document.cookie = 'mode=' + themeValue + cookieBase;
+                document.cookie = 'dark_mode=' + darkModeValue + cookieBase;
+
+                applyTheme(isDarkEnabled);
+            });
+        })();
+    </script>

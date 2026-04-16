@@ -1,6 +1,5 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
-
 <div class="main module-page">
 
     <div class="topbar admin-topbar">

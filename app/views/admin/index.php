@@ -315,6 +315,136 @@
         color: #0f172a;
     }
 
+    body.theme-dark .admin-simple-page .admin-content {
+        background:
+            radial-gradient(circle at 12% 5%, rgba(37, 99, 235, 0.18), transparent 36%),
+            radial-gradient(circle at 88% 10%, rgba(22, 163, 74, 0.14), transparent 34%),
+            #020617;
+    }
+
+    body.theme-dark .admin-simple-page .admin-hero {
+        border-color: rgba(100, 116, 139, 0.6);
+        background: linear-gradient(120deg, rgba(30, 41, 59, 0.84) 0%, rgba(15, 23, 42, 0.96) 72%);
+    }
+
+    body.theme-dark .admin-focus-card {
+        border-color: #334155;
+        background: linear-gradient(180deg, #0f172a, #0b1220);
+        box-shadow: 0 10px 26px rgba(2, 6, 23, 0.45);
+    }
+
+    body.theme-dark .admin-focus-card.pending {
+        border-color: rgba(245, 158, 11, 0.5);
+        background: linear-gradient(160deg, rgba(180, 83, 9, 0.32), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-focus-card.approval {
+        border-color: rgba(59, 130, 246, 0.5);
+        background: linear-gradient(160deg, rgba(37, 99, 235, 0.3), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-focus-card.students {
+        border-color: rgba(34, 197, 94, 0.5);
+        background: linear-gradient(160deg, rgba(22, 163, 74, 0.3), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-focus-label,
+    body.theme-dark .admin-focus-sub,
+    body.theme-dark .admin-secondary-item .label,
+    body.theme-dark .admin-module-meta,
+    body.theme-dark .admin-queue-toolbar label,
+    body.theme-dark .admin-queue-count-note,
+    body.theme-dark .student-mini-id,
+    body.theme-dark .student-mini-stat .k {
+        color: #94a3b8;
+    }
+
+    body.theme-dark .admin-focus-value,
+    body.theme-dark .admin-secondary-item .value,
+    body.theme-dark .admin-module-card h3,
+    body.theme-dark .admin-module-meta strong,
+    body.theme-dark .student-mini-name,
+    body.theme-dark .student-mini-stat .v {
+        color: #e2e8f0;
+    }
+
+    body.theme-dark .admin-secondary-item,
+    body.theme-dark .admin-module-card,
+    body.theme-dark .student-mini-card,
+    body.theme-dark .student-mini-stat {
+        border-color: #334155;
+        box-shadow: 0 8px 22px rgba(2, 6, 23, 0.4);
+    }
+
+    body.theme-dark .admin-secondary-item {
+        background: #0f172a;
+    }
+
+    body.theme-dark .admin-secondary-item:nth-child(1) {
+        background: linear-gradient(135deg, rgba(37, 99, 235, 0.22), #0f172a 72%);
+        border-color: rgba(59, 130, 246, 0.4);
+    }
+
+    body.theme-dark .admin-secondary-item:nth-child(2) {
+        background: linear-gradient(135deg, rgba(14, 116, 144, 0.22), #0f172a 72%);
+        border-color: rgba(14, 165, 233, 0.4);
+    }
+
+    body.theme-dark .admin-secondary-item:nth-child(3) {
+        background: linear-gradient(135deg, rgba(22, 163, 74, 0.22), #0f172a 72%);
+        border-color: rgba(34, 197, 94, 0.4);
+    }
+
+    body.theme-dark .admin-secondary-item:nth-child(4) {
+        background: linear-gradient(135deg, rgba(180, 83, 9, 0.22), #0f172a 72%);
+        border-color: rgba(249, 115, 22, 0.4);
+    }
+
+    body.theme-dark .admin-module-card {
+        background: #0f172a;
+    }
+
+    body.theme-dark .admin-module-card:nth-child(1) {
+        border-color: rgba(54, 93, 157, 0.55);
+        background: linear-gradient(160deg, rgba(54, 93, 157, 0.38), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-module-card:nth-child(2) {
+        border-color: rgba(47, 111, 76, 0.55);
+        background: linear-gradient(160deg, rgba(47, 111, 76, 0.38), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-module-card:nth-child(3) {
+        border-color: rgba(43, 127, 114, 0.55);
+        background: linear-gradient(160deg, rgba(43, 127, 114, 0.35), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-module-card:nth-child(4) {
+        border-color: rgba(161, 120, 58, 0.55);
+        background: linear-gradient(160deg, rgba(161, 120, 58, 0.35), #0f172a 72%);
+    }
+
+    body.theme-dark .admin-module-pending {
+        background: #334155;
+        color: #e2e8f0;
+    }
+
+    body.theme-dark .admin-module-pending.has-pending {
+        background: rgba(180, 83, 9, 0.35);
+        color: #fdba74;
+    }
+
+    body.theme-dark .admin-queue-toolbar select {
+        border-color: #334155;
+        background: #111827;
+        color: #e2e8f0;
+    }
+
+    body.theme-dark .student-mini-card,
+    body.theme-dark .student-mini-stat {
+        background: #0f172a;
+    }
+
     @media (max-width: 1280px) {
         .admin-focus-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
