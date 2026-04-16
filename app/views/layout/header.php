@@ -501,20 +501,32 @@
         .records-table-wrap {
             width: 100%;
             overflow-x: auto;
+            overflow-y: auto;
+            max-height: 68vh;
             border: 1px solid var(--border);
             border-radius: 12px;
             background: #ffffff;
         }
 
+        .records-table-wrap .admin-table th,
+        .records-table-wrap .co-records-table th {
+            position: sticky;
+            top: 0;
+            z-index: 2;
+            background: #f8fafc;
+        }
+
         .records-table-wrap .admin-table {
             border: none;
             border-radius: 0;
+            width: max-content;
             min-width: 1180px;
         }
 
         .records-table-wrap .co-records-table {
             border: none;
             border-radius: 0;
+            width: max-content;
             min-width: 1280px;
         }
 
@@ -522,7 +534,9 @@
         .records-table-wrap .admin-table td,
         .records-table-wrap .co-records-table th,
         .records-table-wrap .co-records-table td {
-            word-break: break-word;
+            white-space: nowrap;
+            word-break: normal;
+            overflow-wrap: normal;
         }
 
         .pagination-bar {

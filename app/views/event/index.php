@@ -30,8 +30,6 @@
         $pendingCount = 0;
         $rejectedCount = 0;
         $eventTypes = [];
-        $reflectionCount = 0;
-        $latestReflection = null;
         $threshold = date('Y-m-d', strtotime('-30 days'));
 
         if (is_array($events)) {
@@ -50,17 +48,6 @@
                 $eventType = trim((string) ($row['eventType'] ?? ''));
                 if ($eventType !== '') {
                     $eventTypes[$eventType] = ($eventTypes[$eventType] ?? 0) + 1;
-                }
-
-                $reflection = trim((string) ($row['reflection'] ?? ''));
-                if ($reflection !== '') {
-                    $reflectionCount++;
-                    if ($latestReflection === null) {
-                        $latestReflection = [
-                            'title' => (string) ($row['eventTitle'] ?? 'Untitled'),
-                            'text' => $reflection,
-                        ];
-                    }
                 }
 
                 $location = trim((string) ($row['location'] ?? ''));
@@ -134,7 +121,7 @@
             <div class="muted" style="margin-top:6px;">Track your campus event participation below.</div>
         </div>
         <div class="page-actions">
-            <a href="index.php?url=event/create" class="btn">+ Add Event</a>
+            <a href="index.php?url=event/create" class="btn">Advanced Add Event</a>
             <a href="index.php?url=event/exportSelf" class="btn btn-secondary no-print">Export my CSV</a>
         </div>
     </div>
@@ -151,6 +138,87 @@
         </div>
     <?php endif; ?>
 
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+            <h3 class="card-title">Available Events Created By Members</h3>
+            <span class="chip"><?= is_array($availableEvents ?? null) ? (int) count($availableEvents) : 0 ?> available</span>
+        </div>
+
+        <?php if (empty($availableEvents)): ?>
+            <div class="muted">No joinable events yet. Once someone creates an event in your approved clubs, it appears here.</div>
+        <?php else: ?>
+            <ul class="list">
+                <?php foreach ($availableEvents as $availableEvent): ?>
+                    <?php
+                        $joinState = (string) ($availableEvent['joinState'] ?? 'can_join');
+                        $joinMessage = (string) ($availableEvent['joinMessage'] ?? 'Seats available');
+                        $badgeClass = 'warn';
+                        $badgeLabel = 'Open';
+                        if ($joinState === 'pending') {
+                            $badgeClass = 'pending';
+                            $badgeLabel = 'Pending';
+                        } elseif ($joinState === 'joined') {
+                            $badgeClass = 'approved';
+                            $badgeLabel = 'Joined';
+                        } elseif ($joinState === 'setup_required') {
+                            $badgeClass = 'rejected';
+                            $badgeLabel = 'Setup Needed';
+                        } elseif ($joinState === 'full') {
+                            $badgeClass = 'rejected';
+                            $badgeLabel = 'Full';
+                        } elseif ($joinState === 'waitlist') {
+                            $badgeClass = 'pending';
+                            $badgeLabel = 'Waitlist';
+                        }
+
+                        $capacity = (int) ($availableEvent['participantCapacity'] ?? 0);
+                        $registered = (int) ($availableEvent['registeredCount'] ?? 0);
+                        $seatSummary = $capacity > 0 ? ($registered . '/' . $capacity) : 'Not set';
+                        $eventType = trim((string) ($availableEvent['eventType'] ?? 'General'));
+                        $location = trim((string) ($availableEvent['location'] ?? ''));
+                        $description = trim((string) ($availableEvent['description'] ?? ''));
+                    ?>
+                    <li class="list-item" style="align-items:center;">
+                        <div style="min-width:0;">
+                            <div class="list-item-title" style="max-width:none;white-space:normal;">
+                                <?= htmlspecialchars((string) ($availableEvent['eventTitle'] ?? 'Event'), ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                            <div class="list-item-sub">
+                                <?= htmlspecialchars((string) ($availableEvent['clubName'] ?? 'Unknown club'), ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(' | ' . ((string) ($availableEvent['eventDate'] ?? '-') !== '' ? (string) ($availableEvent['eventDate'] ?? '-') : '-'), ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(' | ' . ($eventType !== '' ? $eventType : 'General'), ENT_QUOTES, 'UTF-8') ?>
+                                <?= htmlspecialchars(' | Seats: ' . $seatSummary, ENT_QUOTES, 'UTF-8') ?>
+                                <?php if ($location !== ''): ?>
+                                    <?= htmlspecialchars(' | ' . $location, ENT_QUOTES, 'UTF-8') ?>
+                                <?php endif; ?>
+                            </div>
+                            <?php if ($description !== ''): ?>
+                                <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                    <?= htmlspecialchars(strlen($description) > 130 ? substr($description, 0, 127) . '...' : $description, ENT_QUOTES, 'UTF-8') ?>
+                                </div>
+                            <?php endif; ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                <?= htmlspecialchars($joinMessage, ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                        </div>
+                        <div class="list-item-right" style="display:flex;align-items:center;gap:10px;">
+                            <span class="status-badge <?= htmlspecialchars($badgeClass, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($badgeLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php if (!empty($availableEvent['isJoinable'])): ?>
+                                <form method="POST" action="index.php?url=event/quickJoin" style="margin:0;">
+                                    <?php csrf_field(); ?>
+                                    <input type="hidden" name="templateEventID" value="<?= htmlspecialchars((string) ($availableEvent['templateEventID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    <button type="submit" class="btn" style="padding:7px 12px;font-size:0.86rem;">
+                                        <?= htmlspecialchars((string) ($availableEvent['joinButtonLabel'] ?? 'Join'), ENT_QUOTES, 'UTF-8') ?>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
+
     <div class="split-layout">
         <div>
             <div class="card" style="margin-bottom:16px;">
@@ -161,7 +229,7 @@
                         type="text"
                         name="search"
                         class="input"
-                        placeholder="Search club, title, type, hours, location, reflection, or date..."
+                        placeholder="Search club, title, type, hours, location, or date..."
                         value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                     <?php $currentSort = $_GET['sort'] ?? 'eventID'; ?>
@@ -205,14 +273,13 @@
                     <th>Registration</th>
                     <th>Location</th>
                     <th>Summary</th>
-                    <th>Reflection</th>
                     <th>Status</th>
                     <th>Actions</th>
                 </tr>
 
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="12" class="muted">No event records found.</td>
+                        <td colspan="11" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
 
@@ -239,7 +306,7 @@
                     }
                     $seatSummary = $participantCapacity > 0
                         ? ($registeredCount . '/' . $participantCapacity)
-                        : 'Unlimited';
+                        : 'Not set';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars((string) ($e['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
@@ -260,12 +327,6 @@
                     </td>
                     <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                    <td>
-                        <?php
-                            $reflectionText = trim((string) ($e['reflection'] ?? ''));
-                        ?>
-                        <?= $reflectionText === '' ? '<span class="muted">No reflection</span>' : htmlspecialchars(strlen($reflectionText) > 90 ? substr($reflectionText, 0, 87) . '...' : $reflectionText, ENT_QUOTES, 'UTF-8') ?>
-                    </td>
                     <td>
                         <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
                         <?php if ($reviewNote !== ''): ?>
@@ -313,25 +374,6 @@
                     <div class="bar-fill" style="width: <?= (int) $milestoneProgress ?>%;"></div>
                 </div>
                 <div class="muted" style="margin-top:8px;"><?= (int) $totalRecords ?> events logged</div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">Reflection Log</h3>
-                    <span class="chip"><?= (int) $reflectionCount ?> entries</span>
-                </div>
-                <div class="muted" style="margin-bottom:10px;">Capture what you learned for each event to build a stronger portfolio.</div>
-                <?php if ($latestReflection !== null): ?>
-                    <div class="list-item">
-                        <div>
-                            <div class="list-item-title"><?= htmlspecialchars($latestReflection['title'] ?? 'Latest reflection', ENT_QUOTES, 'UTF-8') ?></div>
-                            <?php $latestReflectionText = (string) ($latestReflection['text'] ?? ''); ?>
-                            <div class="list-item-sub"><?= htmlspecialchars(strlen($latestReflectionText) > 140 ? substr($latestReflectionText, 0, 137) . '...' : $latestReflectionText, ENT_QUOTES, 'UTF-8') ?></div>
-                        </div>
-                    </div>
-                <?php else: ?>
-                    <div class="muted">No reflection yet. Add one when you edit an event.</div>
-                <?php endif; ?>
             </div>
 
             <div class="card">

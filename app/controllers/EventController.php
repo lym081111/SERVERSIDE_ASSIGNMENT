@@ -74,19 +74,15 @@ class EventController {
         $participantCapacityText = trim((string) $participantCapacityInput);
         $participantCapacity = null;
 
-        if ($participantCapacityText !== '') {
-            if (!ctype_digit($participantCapacityText) || (int) $participantCapacityText <= 0) {
-                $error = "Participant capacity must be a positive whole number.";
-            } else {
-                $participantCapacity = (int) $participantCapacityText;
-            }
+        if ($participantCapacityText === '') {
+            $error = "Participant capacity (seats) is required.";
+        } elseif (!ctype_digit($participantCapacityText) || (int) $participantCapacityText <= 0) {
+            $error = "Participant capacity must be a positive whole number.";
+        } else {
+            $participantCapacity = (int) $participantCapacityText;
         }
 
         $waitlistEnabled = !empty($waitlistEnabledInput) ? 1 : 0;
-
-        if ($error === null && $participantCapacity === null) {
-            $waitlistEnabled = 0;
-        }
 
         return [
             'participantCapacity' => $participantCapacity,
@@ -128,8 +124,173 @@ class EventController {
 
         $userID = (int) $_SESSION['user_id'];
         $events = Event::getByUser($userID, $search, $sort, $status);
+        $availableEvents = [];
+
+        $joinTemplates = Event::getJoinTemplatesForUser($userID);
+        foreach ($joinTemplates as $template) {
+            $clubCatalogID = (int) ($template['clubCatalogID'] ?? 0);
+            if ($clubCatalogID <= 0) {
+                continue;
+            }
+
+            $registrationStatus = trim((string) ($template['registrationStatus'] ?? 'open'));
+            $userJoinState = trim((string) ($template['userJoinState'] ?? ''));
+            $participantCapacity = (int) ($template['participantCapacity'] ?? 0);
+            $registeredCount = (int) ($template['registeredCount'] ?? 0);
+            $waitlistEnabled = !empty($template['waitlistEnabled']) ? 1 : 0;
+
+            $joinState = 'can_join';
+            $joinMessage = 'Seats available';
+            $joinButtonLabel = $registrationStatus === 'waitlist' ? 'Join Waitlist' : 'Join';
+            $isJoinable = true;
+
+            if ($participantCapacity <= 0) {
+                $joinState = 'setup_required';
+                $joinMessage = 'Seats are not configured for this event yet.';
+                $joinButtonLabel = '';
+                $isJoinable = false;
+            } elseif ($userJoinState === 'approved') {
+                $joinState = 'joined';
+                $joinMessage = 'Already joined';
+                $joinButtonLabel = '';
+                $isJoinable = false;
+            } elseif ($userJoinState === 'pending') {
+                $joinState = 'pending';
+                $joinMessage = 'Join request pending admin approval';
+                $joinButtonLabel = '';
+                $isJoinable = false;
+            } elseif ($registrationStatus === 'full' || ($registrationStatus === 'waitlist' && $waitlistEnabled !== 1)) {
+                $joinState = 'full';
+                $joinMessage = 'Event is full';
+                $joinButtonLabel = '';
+                $isJoinable = false;
+            } elseif ($registrationStatus === 'waitlist') {
+                $joinState = 'waitlist';
+                $joinMessage = 'Event is full. Join waitlist';
+            }
+
+            $availableEvents[] = [
+                'templateEventID' => (int) ($template['templateEventID'] ?? 0),
+                'clubCatalogID' => $clubCatalogID,
+                'clubName' => trim((string) ($template['clubName'] ?? '')),
+                'eventTitle' => trim((string) ($template['eventTitle'] ?? '')),
+                'eventType' => trim((string) ($template['eventType'] ?? '')),
+                'eventDate' => trim((string) ($template['eventDate'] ?? '')),
+                'eventHours' => (float) ($template['eventHours'] ?? 0),
+                'location' => trim((string) ($template['location'] ?? '')),
+                'description' => trim((string) ($template['description'] ?? '')),
+                'participantCapacity' => $participantCapacity,
+                'registeredCount' => $registeredCount,
+                'registrationStatus' => $registrationStatus,
+                'joinState' => $joinState,
+                'joinMessage' => $joinMessage,
+                'joinButtonLabel' => $joinButtonLabel,
+                'isJoinable' => $isJoinable,
+            ];
+        }
 
         require "../app/views/event/index.php";
+    }
+
+    public function quickJoin() {
+
+        $this->checkLogin();
+
+        if ($this->isAdmin()) {
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        verify_csrf();
+
+        $userID = (int) ($_SESSION['user_id'] ?? 0);
+        $templateEventID = isset($_POST['templateEventID']) ? (int) $_POST['templateEventID'] : 0;
+        if ($templateEventID <= 0) {
+            $_SESSION['error'] = "Invalid event selection.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        $template = Event::findJoinTemplateById($templateEventID);
+        if (!$template) {
+            $_SESSION['error'] = "Selected event is no longer available.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        $clubCatalogID = (int) ($template['clubCatalogID'] ?? 0);
+        if ($clubCatalogID <= 0) {
+            $_SESSION['error'] = "Selected event has no valid club.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        $eventTitle = trim((string) ($template['eventTitle'] ?? ''));
+        $eventDate = trim((string) ($template['eventDate'] ?? ''));
+        if ($eventTitle === '' || $eventDate === '') {
+            $_SESSION['error'] = "Selected event details are incomplete.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        if (Event::hasPendingOrApprovedRegistration($userID, $clubCatalogID, $eventTitle, $eventDate)) {
+            $_SESSION['error'] = "You already joined or have a pending join request for this event.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        $registrationStatus = trim((string) ($template['registrationStatus'] ?? 'open'));
+        $waitlistEnabled = !empty($template['waitlistEnabled']) ? 1 : 0;
+        if ($registrationStatus === 'full' || ($registrationStatus === 'waitlist' && $waitlistEnabled !== 1)) {
+            $_SESSION['error'] = "This event is full and waitlist is not available.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+
+        $participantCapacity = isset($template['participantCapacity']) ? (int) $template['participantCapacity'] : 0;
+        if ($participantCapacity <= 0) {
+            $_SESSION['error'] = "Selected event does not have valid seats configured.";
+            header("Location: index.php?url=event/index");
+            exit();
+        }
+        $eventHours = isset($template['eventHours']) ? (float) $template['eventHours'] : 0.0;
+        if ($eventHours <= 0) {
+            $eventHours = 1.0;
+        }
+
+        Event::create(
+            $userID,
+            $clubCatalogID,
+            $eventTitle,
+            $this->normalizeEventType($template['eventType'] ?? 'Leadership'),
+            $eventDate,
+            $eventHours,
+            trim((string) ($template['location'] ?? '')),
+            trim((string) ($template['description'] ?? '')),
+            null,
+            'pending',
+            null,
+            null,
+            null,
+            null,
+            $participantCapacity,
+            $waitlistEnabled
+        );
+
+        $clubName = trim((string) ($template['clubName'] ?? ''));
+        if ($registrationStatus === 'waitlist') {
+            $_SESSION['success'] = "Waitlist join request submitted for {$eventTitle}" . ($clubName !== '' ? " ({$clubName})" : '') . ".";
+        } else {
+            $_SESSION['success'] = "Join request submitted for {$eventTitle}" . ($clubName !== '' ? " ({$clubName})" : '') . ".";
+        }
+
+        header("Location: index.php?url=event/index");
+        exit();
     }
 
     public function create() {
@@ -156,7 +317,6 @@ class EventController {
             $eventType = $this->normalizeEventType($_POST['eventType'] ?? 'Leadership');
             $location = trim((string) ($_POST['location'] ?? ''));
             $description = trim((string) ($_POST['description'] ?? ''));
-            $reflection = trim((string) ($_POST['reflection'] ?? ''));
             $eventHours = isset($_POST['eventHours']) ? (float) $_POST['eventHours'] : 0.0;
             $capacityData = $this->parseCapacityWaitlistInput(
                 $_POST['participantCapacity'] ?? '',
@@ -175,19 +335,6 @@ class EventController {
 
             if ($error === null && $eventHours <= 0) {
                 $error = "Event hours must be greater than 0.";
-            }
-
-            if ($error === null && $capacityData['participantCapacity'] === null && $clubDefinition) {
-                $template = Event::findCapacityTemplate(
-                    (int) ($clubDefinition['clubCatalogID'] ?? 0),
-                    $eventTitle,
-                    $eventType,
-                    $eventDate
-                );
-                if ($template) {
-                    $capacityData['participantCapacity'] = (int) ($template['participantCapacity'] ?? 0);
-                    $capacityData['waitlistEnabled'] = !empty($template['waitlistEnabled']) ? 1 : 0;
-                }
             }
 
             $targetUserID = (int) $_SESSION['user_id'];
@@ -247,7 +394,7 @@ class EventController {
                     $eventHours,
                     $location,
                     $description,
-                    $reflection === '' ? null : $reflection,
+                    null,
                     $status,
                     $reviewedBy,
                     null,
@@ -315,7 +462,6 @@ class EventController {
             $eventType = $this->normalizeEventType($_POST['eventType'] ?? 'Leadership');
             $location = trim((string) ($_POST['location'] ?? ''));
             $description = trim((string) ($_POST['description'] ?? ''));
-            $reflection = trim((string) ($_POST['reflection'] ?? ''));
             $eventHours = isset($_POST['eventHours']) ? (float) $_POST['eventHours'] : 0.0;
             $capacityData = $this->parseCapacityWaitlistInput(
                 $_POST['participantCapacity'] ?? '',
@@ -334,20 +480,6 @@ class EventController {
 
             if ($error === null && $eventHours <= 0) {
                 $error = "Event hours must be greater than 0.";
-            }
-
-            if ($error === null && $capacityData['participantCapacity'] === null && $clubDefinition) {
-                $template = Event::findCapacityTemplate(
-                    (int) ($clubDefinition['clubCatalogID'] ?? 0),
-                    $eventTitle,
-                    $eventType,
-                    $eventDate,
-                    (int) $id
-                );
-                if ($template) {
-                    $capacityData['participantCapacity'] = (int) ($template['participantCapacity'] ?? 0);
-                    $capacityData['waitlistEnabled'] = !empty($template['waitlistEnabled']) ? 1 : 0;
-                }
             }
 
             $targetUserID = $this->isAdmin() ? (int) ($event['userID'] ?? 0) : $userID;
@@ -383,7 +515,7 @@ class EventController {
                         $eventHours,
                         $location,
                         $description,
-                        $reflection === '' ? null : $reflection,
+                        null,
                         $capacityData['participantCapacity'],
                         $capacityData['waitlistEnabled']
                     );
@@ -408,7 +540,7 @@ class EventController {
                             $eventHours,
                             $location,
                             $description,
-                            $reflection === '' ? null : $reflection,
+                            null,
                             $upload['path'],
                             $upload['uploaded'],
                             $capacityData['participantCapacity'],
@@ -447,7 +579,7 @@ class EventController {
         header('Content-Disposition: attachment; filename="my_event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Capacity', 'Registered', 'Waitlist Enabled', 'Waitlist Count', 'Registration Status', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Capacity', 'Registered', 'Waitlist Enabled', 'Waitlist Count', 'Registration Status', 'Location', 'Description', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
@@ -466,7 +598,6 @@ class EventController {
                 $row['registrationStatus'] ?? '',
                 $row['location'] ?? '',
                 $row['description'] ?? '',
-                $row['reflection'] ?? '',
                 $row['status'] ?? '',
                 $row['review_note'] ?? '',
                 $row['evidence_path'] ?? '',
@@ -490,7 +621,7 @@ class EventController {
         header('Content-Disposition: attachment; filename="event_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Capacity', 'Registered', 'Waitlist Enabled', 'Waitlist Count', 'Registration Status', 'Location', 'Description', 'Reflection', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event Title', 'Event Type', 'Event Date', 'Event Hours', 'Capacity', 'Registered', 'Waitlist Enabled', 'Waitlist Count', 'Registration Status', 'Location', 'Description', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($events as $row) {
             $eventDate = trim((string) ($row['eventDate'] ?? ''));
@@ -512,7 +643,6 @@ class EventController {
                 $row['registrationStatus'] ?? '',
                 $row['location'] ?? '',
                 $row['description'] ?? '',
-                $row['reflection'] ?? '',
                 $row['status'] ?? '',
                 $row['review_note'] ?? '',
                 $row['evidence_path'] ?? '',

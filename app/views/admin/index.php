@@ -492,36 +492,38 @@
                 </div>
             </form>
 
-            <table class="admin-table admin-queue-table">
-                <tr>
-                    <th>Submitted At</th>
-                    <th>Student</th>
-                    <th>Module</th>
-                    <th>Record</th>
-                    <th>Action</th>
-                </tr>
-                <?php if (empty($pendingQueue)): ?>
+            <div class="records-table-wrap">
+                <table class="admin-table admin-queue-table">
                     <tr>
-                        <td colspan="5" class="muted">No pending records. Great job keeping reviews up to date.</td>
+                        <th>Submitted At</th>
+                        <th>Student</th>
+                        <th>Student ID</th>
+                        <th>Student Email</th>
+                        <th>Module Info</th>
+                        <th>Action</th>
                     </tr>
-                <?php endif; ?>
-                <?php foreach ($pendingQueue as $row): ?>
-                    <tr>
-                        <td><?= htmlspecialchars($row['submittedAt'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td>
-                            <?= htmlspecialchars($row['studentName'] ?? '-', ENT_QUOTES, 'UTF-8') ?><br>
-                            <span class="muted" style="font-size:0.82rem;">ID: <?= htmlspecialchars($row['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></span>
-                        </td>
-                        <td><?= htmlspecialchars($row['module'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($row['recordTitle'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td>
-                            <a class="link" href="<?= htmlspecialchars((string) ($row['reviewUrl'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>">Review</a>
-                            <span class="muted">|</span>
-                            <a class="link" href="<?= htmlspecialchars((string) ($row['listUrl'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>">Pending list</a>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
-            </table>
+                    <?php if (empty($pendingQueue)): ?>
+                        <tr>
+                            <td colspan="6" class="muted">No pending records. Great job keeping reviews up to date.</td>
+                        </tr>
+                    <?php endif; ?>
+                    <?php foreach ($pendingQueue as $row): ?>
+                        <tr>
+                            <td><?= htmlspecialchars($row['submittedAt'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['studentName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['studentId'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                            <td><?= htmlspecialchars($row['studentEmail'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
+                            <td>
+                                <?= htmlspecialchars($row['module'] ?? '-', ENT_QUOTES, 'UTF-8') ?>:
+                                <?= htmlspecialchars($row['recordTitle'] ?? '-', ENT_QUOTES, 'UTF-8') ?>
+                            </td>
+                            <td>
+                                <a class="btn btn-secondary" href="<?= htmlspecialchars((string) ($row['reviewUrl'] ?? '#'), ENT_QUOTES, 'UTF-8') ?>">View Details</a>
+                            </td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            </div>
         </div>
     </div>
 

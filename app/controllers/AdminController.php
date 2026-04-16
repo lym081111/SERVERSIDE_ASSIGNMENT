@@ -134,6 +134,7 @@ class AdminController {
         $pendingQueueBaseSql = "SELECT * FROM (
                 SELECT 'Merit' AS module, m.meritID AS recordID, m.activityName AS recordTitle,
                        m.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
+                       u.email AS studentEmail,
                        'merit' AS moduleKey,
                        'index.php?url=merit/index&status=pending' AS listUrl
                 FROM merits m
@@ -144,6 +145,7 @@ class AdminController {
 
                 SELECT 'Event' AS module, e.eventID AS recordID, e.eventTitle AS recordTitle,
                        e.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
+                       u.email AS studentEmail,
                        'event' AS moduleKey,
                        'index.php?url=event/index&status=pending' AS listUrl
                 FROM events e
@@ -154,6 +156,7 @@ class AdminController {
 
                 SELECT 'Club' AS module, c.clubID AS recordID, c.clubName AS recordTitle,
                        c.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
+                       u.email AS studentEmail,
                        'club' AS moduleKey,
                        'index.php?url=club/index&status=pending' AS listUrl
                 FROM clubs c
@@ -164,6 +167,7 @@ class AdminController {
 
                 SELECT 'Achievement' AS module, a.achievementID AS recordID, a.title AS recordTitle,
                        a.submitted_at AS submittedAt, u.name AS studentName, u.student_id AS studentId,
+                       u.email AS studentEmail,
                        'achievement' AS moduleKey,
                        'index.php?url=achievement/index&status=pending' AS listUrl
                 FROM achievements a

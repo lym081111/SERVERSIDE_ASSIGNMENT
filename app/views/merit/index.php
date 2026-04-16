@@ -203,7 +203,7 @@
                     <th>Club</th>
                     <th>Event</th>
                     <th>Activity</th>
-                    <th>Hours</th>
+                    <th>Points</th>
                     <th>Date From</th>
                     <th>Date To</th>
                     <th>Status</th>
@@ -230,12 +230,30 @@
                     $appealNote = trim((string) ($m['appeal_note'] ?? ''));
                     $appealedAt = trim((string) ($m['appealed_at'] ?? ''));
                     $resubmissionCount = (int) ($m['resubmission_count'] ?? 0);
+                    $basePoints = (int) ($m['base_hours'] ?? $m['hours'] ?? 0);
+                    $bonusPoints = (int) ($m['achievement_bonus'] ?? 0);
+                    $rankKey = trim((string) ($m['achievement_rank'] ?? ''));
+                    $rankLabelMap = [
+                        'first_prize' => '1st Prize',
+                        'second_prize' => '2nd Prize',
+                        'third_prize' => '3rd Prize',
+                        'consolation' => 'Consolation',
+                        'participant' => 'Participant / Certificate',
+                    ];
+                    $rankLabel = $rankLabelMap[$rankKey] ?? '';
                 ?>
                 <tr>
                     <td><?= htmlspecialchars((string) ($m['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars((string) ($m['eventTitle'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($m['activityName']) ?></td>
-                    <td><?= htmlspecialchars($m['hours'], ENT_QUOTES, 'UTF-8') ?></td>
+                    <td>
+                        <?= htmlspecialchars((string) ($m['hours'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                        <?php if ($bonusPoints > 0): ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                Base <?= (int) $basePoints ?> + Bonus <?= (int) $bonusPoints ?><?= $rankLabel !== '' ? ' (' . htmlspecialchars($rankLabel, ENT_QUOTES, 'UTF-8') . ')' : '' ?>
+                            </div>
+                        <?php endif; ?>
+                    </td>
                     <td><?= htmlspecialchars($dateFromDisplay !== '' ? $dateFromDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td><?= htmlspecialchars($dateToDisplay !== '' ? $dateToDisplay : '-', ENT_QUOTES, 'UTF-8') ?></td>
                     <td>

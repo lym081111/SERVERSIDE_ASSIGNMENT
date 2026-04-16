@@ -181,7 +181,7 @@
             <div class="muted" style="margin-top:6px;">Submit join or role-change requests and track approval status.</div>
         </div>
         <div class="page-actions">
-            <a href="index.php?url=club/create" class="btn">+ Join / Request Role</a>
+            <a href="index.php?url=club/create" class="btn">Advanced Join / Request Role</a>
             <a href="index.php?url=club/timeline" class="btn btn-secondary">View Timeline</a>
             <a href="index.php?url=club/exportSelf" class="btn btn-secondary no-print">Export my CSV</a>
         </div>
@@ -198,6 +198,53 @@
             <?= htmlspecialchars($_SESSION['error'], ENT_QUOTES, 'UTF-8'); unset($_SESSION['error']); ?>
         </div>
     <?php endif; ?>
+
+    <div class="card" style="margin-bottom:16px;">
+        <div class="card-header">
+            <h3 class="card-title">Available Clubs Opened By Admin</h3>
+            <span class="chip"><?= is_array($availableClubs ?? null) ? (int) count($availableClubs) : 0 ?> open</span>
+        </div>
+
+        <?php if (empty($availableClubs)): ?>
+            <div class="muted">No active clubs are open right now. Please check again later.</div>
+        <?php else: ?>
+            <ul class="list">
+                <?php foreach ($availableClubs as $availableClub): ?>
+                    <?php
+                        $joinState = (string) ($availableClub['joinState'] ?? 'can_join');
+                        $joinMessage = (string) ($availableClub['joinMessage'] ?? 'Ready to join');
+                        $isJoinable = $joinState === 'can_join';
+                        $badgeClass = $isJoinable ? 'warn' : ($joinState === 'pending_join' ? 'pending' : 'approved');
+                        $badgeLabel = $isJoinable ? 'Open' : ($joinState === 'pending_join' ? 'Pending' : 'Joined');
+                        $clubDescription = trim((string) ($availableClub['description'] ?? ''));
+                    ?>
+                    <li class="list-item" style="align-items:center;">
+                        <div style="min-width:0;">
+                            <div class="list-item-title" style="max-width:none;white-space:normal;">
+                                <?= htmlspecialchars((string) ($availableClub['clubName'] ?? 'Club'), ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                            <?php if ($clubDescription !== ''): ?>
+                                <div class="list-item-sub"><?= htmlspecialchars($clubDescription, ENT_QUOTES, 'UTF-8') ?></div>
+                            <?php endif; ?>
+                            <div class="muted" style="margin-top:4px;font-size:0.85rem;">
+                                <?= htmlspecialchars($joinMessage, ENT_QUOTES, 'UTF-8') ?>
+                            </div>
+                        </div>
+                        <div class="list-item-right" style="display:flex;align-items:center;gap:10px;">
+                            <span class="status-badge <?= htmlspecialchars($badgeClass, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars($badgeLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                            <?php if ($isJoinable): ?>
+                                <form method="POST" action="index.php?url=club/quickJoin" style="margin:0;">
+                                    <?php csrf_field(); ?>
+                                    <input type="hidden" name="clubCatalogID" value="<?= htmlspecialchars((string) ($availableClub['clubCatalogID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    <button type="submit" class="btn" style="padding:7px 12px;font-size:0.86rem;">Join</button>
+                                </form>
+                            <?php endif; ?>
+                        </div>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </div>
 
     <div class="split-layout">
         <div>

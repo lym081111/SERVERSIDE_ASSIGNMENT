@@ -145,22 +145,20 @@
                     <th>Category</th>
                     <th>Level</th>
                     <th>Date</th>
-                    <th>Description</th>
-                    <th>Proof</th>
                     <th>Status</th>
                     <th>Review</th>
                     <th>Actions</th>
                 </tr>
                 <?php if (empty($achievements)): ?>
                     <tr>
-                        <td colspan="14" class="muted">No achievement records found.</td>
+                        <td colspan="12" class="muted">No achievement records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($achievements as $a): ?>
                     <?php
                         $status = (string) ($a['status'] ?? 'approved');
                         $reviewNote = trim((string) ($a['review_note'] ?? ''));
-                        $evidencePath = trim((string) ($a['evidence_path'] ?? ''));
+                        $hasEvidence = trim((string) ($a['evidence_path'] ?? '')) !== '';
                     ?>
                     <tr>
                         <td><?= htmlspecialchars($a['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -172,14 +170,6 @@
                         <td><?= htmlspecialchars($a['category'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars(($a['achievementLevel'] ?? 'Faculty') ?: 'Faculty', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($a['dateReceived'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($a['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td>
-                            <?php if ($evidencePath !== ''): ?>
-                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open file</a>
-                            <?php else: ?>
-                                <span class="muted">No file</span>
-                            <?php endif; ?>
-                        </td>
                         <td>
                             <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
                         </td>
@@ -193,7 +183,7 @@
                                 <input type="hidden" name="_filter_page" value="<?= (int) $currentPage ?>">
                                 <select name="status" class="input">
                                     <option value="pending" <?= $status === 'pending' ? 'selected' : '' ?>>Pending</option>
-                                    <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?>>Approved</option>
+                                    <option value="approved" <?= $status === 'approved' ? 'selected' : '' ?> <?= $hasEvidence ? '' : 'disabled' ?>>Approved</option>
                                     <option value="rejected" <?= $status === 'rejected' ? 'selected' : '' ?>>Rejected</option>
                                 </select>
                                 <input
@@ -206,7 +196,7 @@
                             </form>
                         </td>
                         <td>
-                            <a class="link" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <a class="btn btn-secondary" href="index.php?url=achievement/edit&id=<?= htmlspecialchars($a['achievementID'], ENT_QUOTES, 'UTF-8') ?>">View Details</a>
                             <span class="muted">|</span>
                             <form method="POST" action="index.php?url=achievement/delete" style="display:inline;">
                                 <?php csrf_field(); ?>

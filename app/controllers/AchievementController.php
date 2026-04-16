@@ -56,6 +56,27 @@ class AchievementController {
         return in_array($level, $allowed, true) ? $level : 'Faculty';
     }
 
+    private function getAchievementTitleOptions() {
+        return [
+            '1st Prize',
+            '2nd Prize',
+            '3rd Prize',
+            'Consolation Prize',
+            'Participant',
+            'Finalist',
+            'Semi-finalist',
+            'Runner-up',
+            'Champion',
+            'Best Performer',
+            'Gold Medal',
+            'Silver Medal',
+            'Bronze Medal',
+            'Special Award',
+            'Honorable Mention',
+            'Other / Etc',
+        ];
+    }
+
     private function getEncouragementMessage($totalAchievements) {
         $totalAchievements = (int) $totalAchievements;
 
@@ -155,6 +176,7 @@ class AchievementController {
         $this->checkLogin();
 
         $error = null;
+        $achievementTitleOptions = $this->getAchievementTitleOptions();
 
         if ($this->isAdmin()) {
             $students = User::getAll();
@@ -219,6 +241,9 @@ class AchievementController {
                     $error = $upload['error'];
                 } else {
                     $evidencePath = $upload['path'];
+                    if ($evidencePath === null || trim((string) $evidencePath) === '') {
+                        $error = "Proof document is required.";
+                    }
                 }
             }
 
@@ -269,6 +294,7 @@ class AchievementController {
         }
 
         $error = null;
+        $achievementTitleOptions = $this->getAchievementTitleOptions();
         $userID = (int) ($_SESSION['user_id'] ?? 0);
 
         if ($this->isAdmin()) {
@@ -288,6 +314,7 @@ class AchievementController {
             }
             $approvedEvents = Event::getApprovedByUser($userID);
         }
+        $existingEvidencePath = trim((string) ($achievement['evidence_path'] ?? ''));
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
@@ -338,14 +365,29 @@ class AchievementController {
                     if (isset($_POST['status'])) {
                         $status = (string) $_POST['status'];
                         $note = trim((string) ($_POST['review_note'] ?? ''));
-                        Achievement::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note);
+                        if ($status === 'approved' && $existingEvidencePath === '') {
+                            $error = "Proof document is required before approving this achievement.";
+                        } else {
+                            Achievement::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note);
+                        }
                     }
-                    $_SESSION['success'] = "Achievement record updated.";
+                    if ($error === null) {
+                        $_SESSION['success'] = "Achievement record updated.";
+                    }
                 } else {
                     $upload = EvidenceUpload::uploadFromRequest('evidence_file');
                     if ($upload['error'] !== null) {
                         $error = $upload['error'];
                     } else {
+                        $finalEvidencePath = !empty($upload['uploaded'])
+                            ? trim((string) ($upload['path'] ?? ''))
+                            : $existingEvidencePath;
+                        if ($finalEvidencePath === '') {
+                            $error = "Proof document is required.";
+                        }
+                    }
+
+                    if ($error === null) {
                         Achievement::update(
                             $id,
                             $userID,
@@ -514,6 +556,20 @@ class AchievementController {
         $note = trim((string) ($_POST['review_note'] ?? ''));
 
         if ($id > 0) {
+            $achievement = Achievement::findById($id);
+            if (!$achievement) {
+                $_SESSION['error'] = "Achievement record not found.";
+                header("Location: " . $this->buildAdminListRedirectUrl());
+                exit();
+            }
+
+            $evidencePath = trim((string) ($achievement['evidence_path'] ?? ''));
+            if ($status === 'approved' && $evidencePath === '') {
+                $_SESSION['error'] = "Cannot approve without proof document. Ask the student to upload evidence first.";
+                header("Location: " . $this->buildAdminListRedirectUrl());
+                exit();
+            }
+
             Achievement::updateStatusById($id, $status, (int) $_SESSION['user_id'], $note);
             $_SESSION['success'] = "Achievement review status updated.";
         }

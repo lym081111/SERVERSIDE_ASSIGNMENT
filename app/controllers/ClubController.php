@@ -86,8 +86,103 @@ class ClubController {
 
         $userID = $_SESSION['user_id'];
         $clubs = Club::getByUser($userID, $search, $sort, $status);
+        $availableClubCatalog = ClubCatalog::getAllActive();
+        $availableClubs = [];
+
+        foreach ($availableClubCatalog as $clubDefinition) {
+            $clubName = trim((string) ($clubDefinition['clubName'] ?? ''));
+            if ($clubName === '') {
+                continue;
+            }
+
+            $isActiveMember = Club::hasActiveApprovedMembership($userID, $clubName);
+            $hasPendingJoin = Club::hasPendingRequest($userID, $clubName, 'join');
+
+            $joinState = 'can_join';
+            $joinMessage = 'Ready to join';
+            if ($isActiveMember) {
+                $joinState = 'active_member';
+                $joinMessage = 'Already an active member';
+            } elseif ($hasPendingJoin) {
+                $joinState = 'pending_join';
+                $joinMessage = 'Join request pending admin approval';
+            }
+
+            $availableClubs[] = [
+                'clubCatalogID' => (int) ($clubDefinition['clubCatalogID'] ?? 0),
+                'clubName' => $clubName,
+                'description' => trim((string) ($clubDefinition['description'] ?? '')),
+                'joinState' => $joinState,
+                'joinMessage' => $joinMessage,
+            ];
+        }
 
         require "../app/views/club/index.php";
+    }
+
+    public function quickJoin() {
+
+        $this->checkLogin();
+
+        if ($this->isAdmin()) {
+            header("Location: index.php?url=club/index");
+            exit();
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header("Location: index.php?url=club/index");
+            exit();
+        }
+
+        verify_csrf();
+
+        $userID = (int) ($_SESSION['user_id'] ?? 0);
+        $clubCatalogID = isset($_POST['clubCatalogID']) ? (int) $_POST['clubCatalogID'] : 0;
+        $clubDefinition = ClubCatalog::findById($clubCatalogID);
+
+        if (!$clubDefinition || (int) ($clubDefinition['is_active'] ?? 0) !== 1) {
+            $_SESSION['error'] = "Please select a valid active club.";
+            header("Location: index.php?url=club/index");
+            exit();
+        }
+
+        $clubName = trim((string) ($clubDefinition['clubName'] ?? ''));
+        if ($clubName === '') {
+            $_SESSION['error'] = "Invalid club name.";
+            header("Location: index.php?url=club/index");
+            exit();
+        }
+
+        if (Club::hasActiveApprovedMembership($userID, $clubName)) {
+            $_SESSION['error'] = "You already have an active approved membership in this club.";
+            header("Location: index.php?url=club/index");
+            exit();
+        }
+
+        if (Club::hasPendingRequest($userID, $clubName, 'join')) {
+            $_SESSION['error'] = "You already have a pending join request for this club.";
+            header("Location: index.php?url=club/index");
+            exit();
+        }
+
+        Club::create(
+            $userID,
+            $clubName,
+            'Member',
+            'Quick join request from overview.',
+            'join',
+            date('Y-m-d'),
+            null,
+            'pending',
+            null,
+            null,
+            null,
+            null
+        );
+
+        $_SESSION['success'] = "Join request submitted for {$clubName}. Please wait for admin approval.";
+        header("Location: index.php?url=club/index");
+        exit();
     }
 
     public function timeline() {

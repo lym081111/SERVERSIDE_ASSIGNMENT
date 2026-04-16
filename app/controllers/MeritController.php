@@ -74,6 +74,115 @@ class MeritController {
         return $baseMessage . " Certificate unlocked at {$label}.";
     }
 
+    private function getAchievementRankPointMap() {
+        return [
+            'first_prize' => ['label' => '1st Prize', 'points' => 15],
+            'second_prize' => ['label' => '2nd Prize', 'points' => 12],
+            'third_prize' => ['label' => '3rd Prize', 'points' => 10],
+            'consolation' => ['label' => 'Consolation', 'points' => 7],
+            'participant' => ['label' => 'Participant / Certificate', 'points' => 5],
+        ];
+    }
+
+    private function inferAchievementRankFromTitle($title) {
+        $normalized = strtolower(trim((string) $title));
+        if ($normalized === '') {
+            return '';
+        }
+
+        $directMap = [
+            '1st prize' => 'first_prize',
+            'champion' => 'first_prize',
+            'gold medal' => 'first_prize',
+            'best performer' => 'first_prize',
+            'special award' => 'first_prize',
+            '2nd prize' => 'second_prize',
+            'runner-up' => 'second_prize',
+            'silver medal' => 'second_prize',
+            '3rd prize' => 'third_prize',
+            'bronze medal' => 'third_prize',
+            'finalist' => 'third_prize',
+            'consolation prize' => 'consolation',
+            'honorable mention' => 'consolation',
+            'semi-finalist' => 'consolation',
+            'participant' => 'participant',
+            'other / etc' => 'participant',
+        ];
+        if (isset($directMap[$normalized])) {
+            return $directMap[$normalized];
+        }
+
+        if (strpos($normalized, '1st') !== false || strpos($normalized, 'first') !== false || strpos($normalized, 'champion') !== false || strpos($normalized, 'gold') !== false) {
+            return 'first_prize';
+        }
+        if (strpos($normalized, '2nd') !== false || strpos($normalized, 'second') !== false || strpos($normalized, 'runner') !== false || strpos($normalized, 'silver') !== false) {
+            return 'second_prize';
+        }
+        if (strpos($normalized, '3rd') !== false || strpos($normalized, 'third') !== false || strpos($normalized, 'bronze') !== false || strpos($normalized, 'finalist') !== false) {
+            return 'third_prize';
+        }
+        if (strpos($normalized, 'consolation') !== false || strpos($normalized, 'honorable') !== false || strpos($normalized, 'semi') !== false) {
+            return 'consolation';
+        }
+
+        return 'participant';
+    }
+
+    private function findApprovedAchievementForEvent($targetUserID, $eventID, $preferredAchievementID = 0) {
+        $preferredAchievementID = (int) $preferredAchievementID;
+        $achievements = Achievement::getByUser((int) $targetUserID, null, 'dateReceived', 'approved');
+        if (!is_array($achievements) || empty($achievements)) {
+            return null;
+        }
+
+        $fallback = null;
+        foreach ($achievements as $achievement) {
+            if ((int) ($achievement['eventID'] ?? 0) !== (int) $eventID) {
+                continue;
+            }
+
+            if ($preferredAchievementID > 0 && (int) ($achievement['achievementID'] ?? 0) === $preferredAchievementID) {
+                return $achievement;
+            }
+
+            if ($fallback === null) {
+                $fallback = $achievement;
+            }
+        }
+
+        return $fallback;
+    }
+
+    private function resolveAchievementBonus($achievementID, $targetUserID, $eventID, &$error) {
+        $payload = [
+            'achievementID' => null,
+            'achievementRank' => null,
+            'achievementRankLabel' => '',
+            'achievementBonus' => 0,
+            'achievementTitle' => '',
+        ];
+
+        $achievement = $this->findApprovedAchievementForEvent($targetUserID, $eventID, $achievementID);
+        if (!$achievement) {
+            return $payload;
+        }
+
+        $rankKey = $this->inferAchievementRankFromTitle((string) ($achievement['title'] ?? ''));
+        $rankMap = $this->getAchievementRankPointMap();
+        if (!isset($rankMap[$rankKey])) {
+            $rankKey = 'participant';
+        }
+        $rankMeta = $rankMap[$rankKey];
+
+        $payload['achievementID'] = (int) ($achievement['achievementID'] ?? 0);
+        $payload['achievementRank'] = $rankKey;
+        $payload['achievementRankLabel'] = (string) ($rankMeta['label'] ?? $rankKey);
+        $payload['achievementBonus'] = (int) ($rankMeta['points'] ?? 0);
+        $payload['achievementTitle'] = trim((string) ($achievement['title'] ?? ''));
+
+        return $payload;
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -146,9 +255,11 @@ class MeritController {
         if ($this->isAdmin()) {
             $students = User::getAll();
             $approvedEvents = Event::getApprovedAllWithUser();
+            $approvedAchievements = Achievement::getAllWithUser(null, 'dateReceived', 'approved');
         } else {
             $userID = (int) $_SESSION['user_id'];
             $approvedEvents = Event::getApprovedByUser($userID);
+            $approvedAchievements = Achievement::getByUser($userID, null, 'dateReceived', 'approved');
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -159,6 +270,7 @@ class MeritController {
             if ($eventID <= 0) {
                 $error = "Please select an approved event.";
             }
+            $achievementID = isset($_POST['achievementID']) ? (int) $_POST['achievementID'] : 0;
 
             $targetUserID = (int) $_SESSION['user_id'];
             if ($this->isAdmin() && $error === null) {
@@ -193,10 +305,21 @@ class MeritController {
 
             if ($error === null && $event !== null) {
                 $activityName = trim((string) ($event['eventTitle'] ?? ''));
-                $hours = isset($event['eventHours']) ? (float) $event['eventHours'] : 0.0;
+                $baseHours = isset($event['eventHours']) ? (int) round((float) $event['eventHours']) : 0;
                 $eventDate = trim((string) ($event['eventDate'] ?? ''));
-                if ($activityName === '' || $hours <= 0 || $eventDate === '' || $eventDate === '0000-00-00') {
+                if ($activityName === '' || $baseHours <= 0 || $eventDate === '' || $eventDate === '0000-00-00') {
                     $error = "Selected event is missing required details (title/date/hours).";
+                }
+
+                $achievementPayload = $this->resolveAchievementBonus(
+                    $achievementID,
+                    $targetUserID,
+                    $eventID,
+                    $error
+                );
+                $totalHours = $baseHours + (int) ($achievementPayload['achievementBonus'] ?? 0);
+                if ($error === null && $totalHours <= 0) {
+                    $error = "Total merit points must be greater than zero.";
                 }
 
                 if ($error === null) {
@@ -207,14 +330,18 @@ class MeritController {
                         $targetUserID,
                         (int) $eventID,
                         $activityName,
-                        $hours,
+                        $totalHours,
                         $eventDate,
                         $eventDate,
                         $status,
                         $reviewedBy,
                         null,
                         $reviewedAt,
-                        $evidencePath
+                        $evidencePath,
+                        $achievementPayload['achievementID'],
+                        $achievementPayload['achievementRank'],
+                        $achievementPayload['achievementBonus'],
+                        $baseHours
                     );
                     if (!$created) {
                         $error = "Unable to save merit record. Please try again.";
@@ -225,6 +352,9 @@ class MeritController {
                     $successMessage = $this->isAdmin()
                         ? "Merit record added and approved."
                         : "Merit record submitted for review.";
+                    if (!empty($achievementPayload['achievementBonus'])) {
+                        $successMessage .= " Achievement bonus +" . (int) $achievementPayload['achievementBonus'] . " points applied.";
+                    }
                     if ($this->isAdmin() && $status === 'approved') {
                         $newCertificates = MeritCertificate::issueEligibleForUser(
                             (int) $targetUserID,
@@ -268,6 +398,7 @@ class MeritController {
             }
             $student = User::findById((int) ($merit['userID'] ?? 0));
             $approvedEvents = Event::getApprovedByUser((int) ($merit['userID'] ?? 0));
+            $approvedAchievements = Achievement::getByUser((int) ($merit['userID'] ?? 0), null, 'dateReceived', 'approved');
             $statusLogs = Merit::getStatusLogsByMerit($id);
         } else {
             $merit = Merit::find($id, $userID);
@@ -278,6 +409,7 @@ class MeritController {
                 $this->redirectWithError("Approved merit records can only be edited by admin.");
             }
             $approvedEvents = Event::getApprovedByUser($userID);
+            $approvedAchievements = Achievement::getByUser($userID, null, 'dateReceived', 'approved');
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -288,6 +420,7 @@ class MeritController {
             if ($eventID <= 0) {
                 $error = "Please select an approved event.";
             }
+            $achievementID = isset($_POST['achievementID']) ? (int) $_POST['achievementID'] : 0;
 
             $targetUserID = $this->isAdmin() ? (int) ($merit['userID'] ?? 0) : $userID;
             $event = null;
@@ -300,10 +433,21 @@ class MeritController {
 
             if ($error === null && $event !== null) {
                 $activityName = trim((string) ($event['eventTitle'] ?? ''));
-                $hours = isset($event['eventHours']) ? (float) $event['eventHours'] : 0.0;
+                $baseHours = isset($event['eventHours']) ? (int) round((float) $event['eventHours']) : 0;
                 $eventDate = trim((string) ($event['eventDate'] ?? ''));
-                if ($activityName === '' || $hours <= 0 || $eventDate === '' || $eventDate === '0000-00-00') {
+                if ($activityName === '' || $baseHours <= 0 || $eventDate === '' || $eventDate === '0000-00-00') {
                     $error = "Selected event is missing required details (title/date/hours).";
+                }
+
+                $achievementPayload = $this->resolveAchievementBonus(
+                    $achievementID,
+                    $targetUserID,
+                    $eventID,
+                    $error
+                );
+                $totalHours = $baseHours + (int) ($achievementPayload['achievementBonus'] ?? 0);
+                if ($error === null && $totalHours <= 0) {
+                    $error = "Total merit points must be greater than zero.";
                 }
 
                 if ($error === null) {
@@ -312,9 +456,13 @@ class MeritController {
                             $id,
                             (int) $eventID,
                             $activityName,
-                            $hours,
+                            $totalHours,
                             $eventDate,
-                            $eventDate
+                            $eventDate,
+                            $achievementPayload['achievementID'],
+                            $achievementPayload['achievementRank'],
+                            $achievementPayload['achievementBonus'],
+                            $baseHours
                         );
                         if (isset($_POST['status'])) {
                             $status = (string) $_POST['status'];
@@ -339,17 +487,21 @@ class MeritController {
                             $error = $upload['error'];
                         } else {
                             $updated = Merit::update(
-                                $id,
-                                $userID,
-                                (int) $eventID,
-                                $activityName,
-                                $hours,
-                                $eventDate,
-                                $eventDate,
-                                $upload['path'],
-                                $upload['uploaded'],
-                                $appealNote
-                            );
+                            $id,
+                            $userID,
+                            (int) $eventID,
+                            $activityName,
+                            $totalHours,
+                            $eventDate,
+                            $eventDate,
+                            $upload['path'],
+                            $upload['uploaded'],
+                            $appealNote,
+                            $achievementPayload['achievementID'],
+                            $achievementPayload['achievementRank'],
+                            $achievementPayload['achievementBonus'],
+                            $baseHours
+                        );
                             if (!$updated) {
                                 $error = "Unable to update record. It may no longer be editable.";
                             } elseif (($merit['status'] ?? '') === 'rejected') {
@@ -390,7 +542,7 @@ class MeritController {
         header('Content-Disposition: attachment; filename="my_merit_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Club', 'Event', 'Activity', 'Hours', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Club', 'Event', 'Activity', 'Base Points', 'Achievement Rank', 'Achievement Bonus', 'Total Points', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($merits as $row) {
             $dateFrom = trim((string) ($row['dateFrom'] ?? ''));
@@ -402,6 +554,9 @@ class MeritController {
                 $row['clubName'] ?? '',
                 $row['eventTitle'] ?? '',
                 $row['activityName'] ?? '',
+                $row['base_hours'] ?? 0,
+                $row['achievement_rank'] ?? '',
+                $row['achievement_bonus'] ?? 0,
                 $row['hours'] ?? '',
                 $dateFrom,
                 $dateTo,
@@ -428,7 +583,7 @@ class MeritController {
         header('Content-Disposition: attachment; filename="merit_records.csv"');
 
         $output = fopen('php://output', 'w');
-        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event', 'Activity', 'Hours', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
+        fputcsv($output, ['Student Name', 'Student ID', 'Student Email', 'Club', 'Event', 'Activity', 'Base Points', 'Achievement Rank', 'Achievement Bonus', 'Total Points', 'Date From', 'Date To', 'Status', 'Review Note', 'Evidence File']);
 
         foreach ($merits as $row) {
             $dateFrom = trim((string) ($row['dateFrom'] ?? ''));
@@ -443,6 +598,9 @@ class MeritController {
                 $row['clubName'] ?? '',
                 $row['eventTitle'] ?? '',
                 $row['activityName'] ?? '',
+                $row['base_hours'] ?? 0,
+                $row['achievement_rank'] ?? '',
+                $row['achievement_bonus'] ?? 0,
                 $row['hours'] ?? '',
                 $dateFrom,
                 $dateTo,

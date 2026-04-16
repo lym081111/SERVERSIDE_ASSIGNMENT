@@ -94,17 +94,22 @@ class Merit {
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    public static function create($userID, $eventID, $activityName, $hours, $dateFrom, $dateTo, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null) {
+    public static function create($userID, $eventID, $activityName, $hours, $dateFrom, $dateTo, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null, $achievementID = null, $achievementRank = null, $achievementBonus = 0, $baseHours = null) {
         $db = Database::connect();
         $stmt = $db->prepare(
-            "INSERT INTO merits (userID, eventID, activityName, hours, dateFrom, dateTo, status, reviewed_by, review_note, reviewed_at, evidence_path)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO merits (userID, eventID, achievementID, activityName, achievement_rank, achievement_bonus, hours, base_hours, dateFrom, dateTo, status, reviewed_by, review_note, reviewed_at, evidence_path)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
+        $baseHoursValue = $baseHours !== null ? (int) $baseHours : (int) $hours;
         $created = $stmt->execute([
             (int) $userID,
             $eventID !== null ? (int) $eventID : null,
+            $achievementID !== null ? (int) $achievementID : null,
             $activityName,
+            $achievementRank !== null ? (string) $achievementRank : null,
+            (int) $achievementBonus,
             $hours,
+            $baseHoursValue,
             $dateFrom,
             $dateTo,
             $status,
@@ -151,7 +156,7 @@ class Merit {
         return $stmt->fetch(PDO::FETCH_ASSOC);
     }
 
-    public static function update($id, $userID, $eventID, $activityName, $hours, $dateFrom, $dateTo, $evidencePath = null, $replaceEvidence = false, $appealNote = null) {
+    public static function update($id, $userID, $eventID, $activityName, $hours, $dateFrom, $dateTo, $evidencePath = null, $replaceEvidence = false, $appealNote = null, $achievementID = null, $achievementRank = null, $achievementBonus = 0, $baseHours = null) {
         $db = Database::connect();
         $currentStmt = $db->prepare("SELECT status FROM merits WHERE meritID = ? AND userID = ? AND status IN ('pending', 'rejected')");
         $currentStmt->execute([(int) $id, (int) $userID]);
@@ -168,7 +173,7 @@ class Merit {
 
         $stmt = $db->prepare(
             "UPDATE merits
-             SET eventID = ?, activityName = ?, hours = ?, dateFrom = ?, dateTo = ?,
+             SET eventID = ?, achievementID = ?, activityName = ?, achievement_rank = ?, achievement_bonus = ?, hours = ?, base_hours = ?, dateFrom = ?, dateTo = ?,
                  evidence_path = CASE WHEN ? = 1 THEN ? ELSE evidence_path END,
                  status='pending', reviewed_at=NULL, reviewed_by=NULL, review_note=NULL,
                  appeal_note = CASE WHEN ? = 1 THEN ? ELSE appeal_note END,
@@ -179,8 +184,12 @@ class Merit {
         );
         $updated = $stmt->execute([
             $eventID !== null ? (int) $eventID : null,
+            $achievementID !== null ? (int) $achievementID : null,
             $activityName,
+            $achievementRank !== null ? (string) $achievementRank : null,
+            (int) $achievementBonus,
             $hours,
+            $baseHours !== null ? (int) $baseHours : (int) $hours,
             $dateFrom,
             $dateTo,
             $replaceEvidence ? 1 : 0,
@@ -203,17 +212,21 @@ class Merit {
         return $updated;
     }
 
-    public static function updateById($id, $eventID, $activityName, $hours, $dateFrom, $dateTo) {
+    public static function updateById($id, $eventID, $activityName, $hours, $dateFrom, $dateTo, $achievementID = null, $achievementRank = null, $achievementBonus = 0, $baseHours = null) {
         $db = Database::connect();
         $stmt = $db->prepare(
             "UPDATE merits
-             SET eventID = ?, activityName = ?, hours = ?, dateFrom = ?, dateTo = ?
+             SET eventID = ?, achievementID = ?, activityName = ?, achievement_rank = ?, achievement_bonus = ?, hours = ?, base_hours = ?, dateFrom = ?, dateTo = ?
              WHERE meritID = ?"
         );
         return $stmt->execute([
             $eventID !== null ? (int) $eventID : null,
+            $achievementID !== null ? (int) $achievementID : null,
             $activityName,
+            $achievementRank !== null ? (string) $achievementRank : null,
+            (int) $achievementBonus,
             $hours,
+            $baseHours !== null ? (int) $baseHours : (int) $hours,
             $dateFrom,
             $dateTo,
             (int) $id,

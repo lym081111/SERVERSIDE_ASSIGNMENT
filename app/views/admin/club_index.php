@@ -142,24 +142,24 @@
                     <th>Club</th>
                     <th>Request Type</th>
                     <th>Role</th>
-                    <th>Role Description</th>
-                    <th>Start</th>
-                    <th>End</th>
-                    <th>Proof</th>
+                    <th>Period</th>
                     <th>Status</th>
                     <th>Review</th>
                     <th>Actions</th>
                 </tr>
                 <?php if (empty($clubs)): ?>
                     <tr>
-                        <td colspan="13" class="muted">No club records found.</td>
+                        <td colspan="10" class="muted">No club records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($clubs as $c): ?>
                     <?php
                         $status = (string) ($c['status'] ?? 'approved');
                         $reviewNote = trim((string) ($c['review_note'] ?? ''));
-                        $evidencePath = trim((string) ($c['evidence_path'] ?? ''));
+                        $startDate = trim((string) ($c['startDate'] ?? ''));
+                        $endDate = trim((string) ($c['endDate'] ?? ''));
+                        $startDate = ($startDate === '' || $startDate === '0000-00-00') ? '-' : $startDate;
+                        $endDate = ($endDate === '' || $endDate === '0000-00-00') ? '-' : $endDate;
                     ?>
                     <tr>
                         <td><?= htmlspecialchars($c['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -168,16 +168,7 @@
                         <td><?= htmlspecialchars($c['clubName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars(((string) ($c['request_type'] ?? 'join')) === 'role_change' ? 'Role Change' : 'Join Club', ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($c['role'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($c['roleDescription'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($c['startDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($c['endDate'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td>
-                            <?php if ($evidencePath !== ''): ?>
-                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open file</a>
-                            <?php else: ?>
-                                <span class="muted">No file</span>
-                            <?php endif; ?>
-                        </td>
+                        <td><?= htmlspecialchars($startDate . ' to ' . $endDate, ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
                             <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
                         </td>
@@ -204,7 +195,7 @@
                             </form>
                         </td>
                         <td>
-                            <a class="link" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <a class="btn btn-secondary" href="index.php?url=club/edit&id=<?= htmlspecialchars($c['clubID'], ENT_QUOTES, 'UTF-8') ?>">View Details</a>
                             <span class="muted">|</span>
                             <form method="POST" action="index.php?url=club/delete" style="display:inline;">
                                 <?php csrf_field(); ?>

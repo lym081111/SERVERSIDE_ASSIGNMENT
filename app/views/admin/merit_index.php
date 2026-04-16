@@ -180,28 +180,32 @@
                     <th>Club</th>
                     <th>Event</th>
                     <th>Activity</th>
-                    <th>Hours</th>
-                    <th>Date From</th>
-                    <th>Date To</th>
-                    <th>Proof</th>
+                    <th>Points</th>
+                    <th>Date Range</th>
                     <th>Status</th>
-                    <th>Appeal</th>
                     <th>Review</th>
                     <th>Actions</th>
                 </tr>
                 <?php if (empty($merits)): ?>
                     <tr>
-                        <td colspan="14" class="muted">No merit records found.</td>
+                        <td colspan="12" class="muted">No merit records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($merits as $m): ?>
                     <?php
                         $status = (string) ($m['status'] ?? 'approved');
                         $reviewNote = trim((string) ($m['review_note'] ?? ''));
-                        $evidencePath = trim((string) ($m['evidence_path'] ?? ''));
-                        $appealNote = trim((string) ($m['appeal_note'] ?? ''));
-                        $appealedAt = trim((string) ($m['appealed_at'] ?? ''));
-                        $resubmissionCount = (int) ($m['resubmission_count'] ?? 0);
+                        $basePoints = (int) ($m['base_hours'] ?? $m['hours'] ?? 0);
+                        $bonusPoints = (int) ($m['achievement_bonus'] ?? 0);
+                        $rankKey = trim((string) ($m['achievement_rank'] ?? ''));
+                        $rankLabelMap = [
+                            'first_prize' => '1st Prize',
+                            'second_prize' => '2nd Prize',
+                            'third_prize' => '3rd Prize',
+                            'consolation' => 'Consolation',
+                            'participant' => 'Participant / Certificate',
+                        ];
+                        $rankLabel = $rankLabelMap[$rankKey] ?? '';
                     ?>
                     <tr>
                         <td><?= htmlspecialchars($m['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -210,33 +214,17 @@
                         <td><?= htmlspecialchars((string) ($m['clubName'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars((string) ($m['eventTitle'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
                         <td><?= htmlspecialchars($m['activityName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($m['hours'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($m['dateFrom'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($m['dateTo'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
                         <td>
-                            <?php if ($evidencePath !== ''): ?>
-                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open file</a>
-                            <?php else: ?>
-                                <span class="muted">No file</span>
-                            <?php endif; ?>
-                        </td>
-                        <td>
-                            <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
-                        </td>
-                        <td>
-                            <?php if ($resubmissionCount > 0): ?>
-                                <div class="muted" style="font-size:0.85rem;">Resubmissions: <?= (int) $resubmissionCount ?></div>
-                            <?php else: ?>
-                                <span class="muted">No appeals yet</span>
-                            <?php endif; ?>
-                            <?php if ($appealedAt !== ''): ?>
-                                <div class="muted" style="font-size:0.85rem;">Last: <?= htmlspecialchars($appealedAt, ENT_QUOTES, 'UTF-8') ?></div>
-                            <?php endif; ?>
-                            <?php if ($appealNote !== ''): ?>
+                            <?= htmlspecialchars((string) ($m['hours'] ?? 0), ENT_QUOTES, 'UTF-8') ?>
+                            <?php if ($bonusPoints > 0): ?>
                                 <div class="muted" style="margin-top:4px;font-size:0.85rem;">
-                                    <?= htmlspecialchars($appealNote, ENT_QUOTES, 'UTF-8') ?>
+                                    Base <?= (int) $basePoints ?> + Bonus <?= (int) $bonusPoints ?><?= $rankLabel !== '' ? ' (' . htmlspecialchars($rankLabel, ENT_QUOTES, 'UTF-8') . ')' : '' ?>
                                 </div>
                             <?php endif; ?>
+                        </td>
+                        <td><?= htmlspecialchars((string) ($m['dateFrom'] ?? '-'), ENT_QUOTES, 'UTF-8') ?> to <?= htmlspecialchars((string) ($m['dateTo'] ?? '-'), ENT_QUOTES, 'UTF-8') ?></td>
+                        <td>
+                            <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
                         </td>
                         <td>
                             <form method="POST" action="index.php?url=merit/review" class="review-form">
@@ -261,7 +249,7 @@
                             </form>
                         </td>
                         <td>
-                            <a class="link" href="index.php?url=merit/edit&id=<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <a class="btn btn-secondary" href="index.php?url=merit/edit&id=<?= htmlspecialchars($m['meritID'], ENT_QUOTES, 'UTF-8') ?>">View Details</a>
                             <span class="muted">|</span>
                             <form method="POST" action="index.php?url=merit/delete" style="display:inline;">
                                 <?php csrf_field(); ?>
@@ -278,6 +266,42 @@
                     </tr>
                 <?php endforeach; ?>
             </table>
+            </div>
+            <div class="pagination-bar">
+                <div class="pagination-meta">
+                    Showing <?= (int) $startRecord ?>-<?= (int) $endRecord ?> of <?= (int) $totalRecords ?>
+                </div>
+                <?php if ($totalPages > 1): ?>
+                    <div class="pagination-links">
+                        <?php
+                            $prevParams = $paginationParams;
+                            $prevParams['page'] = max(1, $currentPage - 1);
+                            $nextParams = $paginationParams;
+                            $nextParams['page'] = min($totalPages, $currentPage + 1);
+                        ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage <= 1 ? 'disabled' : '' ?>"
+                            <?= $currentPage <= 1 ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($prevParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Previous
+                        </a>
+                        <?php for ($pageNo = $pageWindowStart; $pageNo <= $pageWindowEnd; $pageNo++): ?>
+                            <?php $pageParams = $paginationParams; $pageParams['page'] = $pageNo; ?>
+                            <a
+                                class="btn btn-secondary <?= $pageNo === $currentPage ? 'active' : '' ?>"
+                                href="index.php?<?= htmlspecialchars(http_build_query($pageParams), ENT_QUOTES, 'UTF-8') ?>">
+                                <?= (int) $pageNo ?>
+                            </a>
+                        <?php endfor; ?>
+                        <a
+                            class="btn btn-secondary <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
+                            <?= $currentPage >= $totalPages ? 'aria-disabled="true"' : '' ?>
+                            href="index.php?<?= htmlspecialchars(http_build_query($nextParams), ENT_QUOTES, 'UTF-8') ?>">
+                            Next
+                        </a>
+                    </div>
+                <?php endif; ?>
+            </div>
         </div>
     </div>
 
@@ -333,42 +357,6 @@
                     </tr>
                 <?php endforeach; ?>
             </table>
-            </div>
-            <div class="pagination-bar">
-                <div class="pagination-meta">
-                    Showing <?= (int) $startRecord ?>-<?= (int) $endRecord ?> of <?= (int) $totalRecords ?>
-                </div>
-                <?php if ($totalPages > 1): ?>
-                    <div class="pagination-links">
-                        <?php
-                            $prevParams = $paginationParams;
-                            $prevParams['page'] = max(1, $currentPage - 1);
-                            $nextParams = $paginationParams;
-                            $nextParams['page'] = min($totalPages, $currentPage + 1);
-                        ?>
-                        <a
-                            class="btn btn-secondary <?= $currentPage <= 1 ? 'disabled' : '' ?>"
-                            <?= $currentPage <= 1 ? 'aria-disabled="true"' : '' ?>
-                            href="index.php?<?= htmlspecialchars(http_build_query($prevParams), ENT_QUOTES, 'UTF-8') ?>">
-                            Previous
-                        </a>
-                        <?php for ($pageNo = $pageWindowStart; $pageNo <= $pageWindowEnd; $pageNo++): ?>
-                            <?php $pageParams = $paginationParams; $pageParams['page'] = $pageNo; ?>
-                            <a
-                                class="btn btn-secondary <?= $pageNo === $currentPage ? 'active' : '' ?>"
-                                href="index.php?<?= htmlspecialchars(http_build_query($pageParams), ENT_QUOTES, 'UTF-8') ?>">
-                                <?= (int) $pageNo ?>
-                            </a>
-                        <?php endfor; ?>
-                        <a
-                            class="btn btn-secondary <?= $currentPage >= $totalPages ? 'disabled' : '' ?>"
-                            <?= $currentPage >= $totalPages ? 'aria-disabled="true"' : '' ?>
-                            href="index.php?<?= htmlspecialchars(http_build_query($nextParams), ENT_QUOTES, 'UTF-8') ?>">
-                            Next
-                        </a>
-                    </div>
-                <?php endif; ?>
-            </div>
         </div>
     </div>
 
@@ -378,4 +366,3 @@
 </div>
 
 <?php require "../app/views/layout/footer.php"; ?>
-

@@ -96,7 +96,7 @@
                     type="text"
                     name="search"
                     class="input"
-                    placeholder="Search student, ID, email, club, title, type, hours, location, reflection, or date..."
+                    placeholder="Search student, ID, email, club, title, type, hours, location, or date..."
                     value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search'], ENT_QUOTES, 'UTF-8') : '' ?>">
 
                 <?php $currentSort = $_GET['sort'] ?? 'eventID'; ?>
@@ -150,24 +150,19 @@
                     <th>Hours</th>
                     <th>Seats</th>
                     <th>Registration</th>
-                    <th>Location</th>
-                    <th>Description</th>
-                    <th>Reflection</th>
-                    <th>Proof</th>
                     <th>Status</th>
                     <th>Review</th>
                     <th>Actions</th>
                 </tr>
                 <?php if (empty($events)): ?>
                     <tr>
-                        <td colspan="17" class="muted">No event records found.</td>
+                        <td colspan="12" class="muted">No event records found.</td>
                     </tr>
                 <?php endif; ?>
                 <?php foreach ($events as $e): ?>
                     <?php
                         $status = (string) ($e['status'] ?? 'approved');
                         $reviewNote = trim((string) ($e['review_note'] ?? ''));
-                        $evidencePath = trim((string) ($e['evidence_path'] ?? ''));
                         $participantCapacity = isset($e['participantCapacity']) ? (int) $e['participantCapacity'] : 0;
                         $registeredCount = isset($e['registeredCount']) ? (int) $e['registeredCount'] : 0;
                         $waitlistCount = isset($e['waitlistCount']) ? (int) $e['waitlistCount'] : 0;
@@ -183,7 +178,7 @@
                         }
                         $seatSummary = $participantCapacity > 0
                             ? ($registeredCount . '/' . $participantCapacity)
-                            : 'Unlimited';
+                            : 'Not set';
                     ?>
                     <tr>
                         <td><?= htmlspecialchars($e['userName'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
@@ -201,16 +196,6 @@
                             <?php endif; ?>
                         </td>
                         <td><span class="chip"><?= htmlspecialchars(ucfirst($registrationStatus), ENT_QUOTES, 'UTF-8') ?></span></td>
-                        <td><?= htmlspecialchars($e['location'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($e['description'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td><?= htmlspecialchars($e['reflection'] ?? '-', ENT_QUOTES, 'UTF-8') ?></td>
-                        <td>
-                            <?php if ($evidencePath !== ''): ?>
-                                <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">Open file</a>
-                            <?php else: ?>
-                                <span class="muted">No file</span>
-                            <?php endif; ?>
-                        </td>
                         <td>
                             <span class="status-badge <?= htmlspecialchars($status, ENT_QUOTES, 'UTF-8') ?>"><?= htmlspecialchars(ucfirst($status), ENT_QUOTES, 'UTF-8') ?></span>
                         </td>
@@ -237,7 +222,7 @@
                             </form>
                         </td>
                         <td>
-                            <a class="link" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">Edit</a>
+                            <a class="btn btn-secondary" href="index.php?url=event/edit&id=<?= htmlspecialchars($e['eventID'], ENT_QUOTES, 'UTF-8') ?>">View Details</a>
                             <span class="muted">|</span>
                             <form method="POST" action="index.php?url=event/delete" style="display:inline;">
                                 <?php csrf_field(); ?>

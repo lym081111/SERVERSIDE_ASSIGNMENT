@@ -47,6 +47,8 @@
 
         <?php
             $selectedEventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
+            $selectedTitle = trim((string) ($_POST['title'] ?? ''));
+            $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
             $selectedEventCategory = '';
             foreach ($approvedEvents as $eventRow) {
                 if ((int) ($eventRow['eventID'] ?? 0) === $selectedEventID) {
@@ -78,7 +80,19 @@
 
                 <div>
                     <label class="label">Title</label>
-                    <input class="input" type="text" name="title" placeholder="e.g. 1st Prize" required>
+                    <select class="input" name="title" required>
+                        <option value="">Select title</option>
+                        <?php foreach ($achievementTitleOptions as $titleOption): ?>
+                            <option value="<?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>" <?= $selectedTitle === $titleOption ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <?php if ($hasCustomTitle): ?>
+                            <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
+                                <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
+                            </option>
+                        <?php endif; ?>
+                    </select>
                 </div>
 
                 <div>
@@ -110,8 +124,8 @@
 
             <div class="form-actions">
                 <div style="width:100%;">
-                    <label class="label">Proof Document (Optional)</label>
-                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
+                    <label class="label">Proof Document (Required)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png" required>
                     <div class="muted" style="margin-top:6px;">Accepted: PDF, JPG, PNG (max 5MB).</div>
                 </div>
                 <button type="submit" class="btn">Save Record</button>

@@ -84,8 +84,8 @@ class Event {
 
         if ($search !== null && $search !== '') {
             $term = '%' . $search . '%';
-            $sql .= " AND (e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR e.reflection LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ? OR CAST(e.participantCapacity AS CHAR) LIKE ?)";
-            array_push($params, $term, $term, $term, $term, $term, $term, $term, $term, $term);
+            $sql .= " AND (e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ? OR CAST(e.participantCapacity AS CHAR) LIKE ?)";
+            array_push($params, $term, $term, $term, $term, $term, $term, $term, $term);
         }
 
         $allowedStatus = ['pending', 'approved', 'rejected'];
@@ -155,8 +155,8 @@ class Event {
 
         if ($search !== null && $search !== '') {
             $t = '%' . $search . '%';
-            $conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR u.student_id LIKE ? OR e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR e.reflection LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ? OR CAST(e.participantCapacity AS CHAR) LIKE ?)";
-            $params = array_merge($params, [$t, $t, $t, $t, $t, $t, $t, $t, $t, $t, $t, $t]);
+            $conditions[] = "(u.name LIKE ? OR u.email LIKE ? OR u.student_id LIKE ? OR e.eventTitle LIKE ? OR e.eventType LIKE ? OR cc.clubName LIKE ? OR CAST(e.eventHours AS CHAR) LIKE ? OR e.location LIKE ? OR e.description LIKE ? OR CAST(e.eventDate AS CHAR) LIKE ? OR CAST(e.participantCapacity AS CHAR) LIKE ?)";
+            $params = array_merge($params, [$t, $t, $t, $t, $t, $t, $t, $t, $t, $t, $t]);
         }
 
         $allowedStatus = ['pending', 'approved', 'rejected'];
@@ -174,6 +174,128 @@ class Event {
         $stmt = $db->prepare($sql);
         $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public static function getJoinTemplatesForUser($userID) {
+        $db = Database::connect();
+        $registeredCountSql = "(SELECT COUNT(*)
+                                FROM events e_reg
+                                WHERE e_reg.status = 'approved'
+                                  AND e_reg.eventDate = e.eventDate
+                                  AND e_reg.clubCatalogID <=> e.clubCatalogID
+                                  AND LOWER(TRIM(e_reg.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
+        $pendingCountSql = "(SELECT COUNT(*)
+                             FROM events e_pending
+                             WHERE e_pending.status = 'pending'
+                               AND e_pending.eventDate = e.eventDate
+                               AND e_pending.clubCatalogID <=> e.clubCatalogID
+                               AND LOWER(TRIM(e_pending.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
+
+        $sql = "SELECT e.eventID AS templateEventID, e.clubCatalogID, cc.clubName, e.eventTitle, e.eventType, e.eventDate,
+                       e.eventHours, e.location, e.description, e.participantCapacity, e.waitlistEnabled,
+                       {$registeredCountSql} AS registeredCount,
+                       {$pendingCountSql} AS pendingCount,
+                       CASE
+                           WHEN COALESCE(e.participantCapacity, 0) <= 0 THEN 'open'
+                           WHEN {$registeredCountSql} < e.participantCapacity THEN 'open'
+                           WHEN COALESCE(e.waitlistEnabled, 1) = 1 THEN 'waitlist'
+                           ELSE 'full'
+                       END AS registrationStatus,
+                       CASE
+                           WHEN EXISTS (
+                               SELECT 1
+                               FROM events e_user_approved
+                               WHERE e_user_approved.userID = ?
+                                 AND e_user_approved.status = 'approved'
+                                 AND e_user_approved.eventDate = e.eventDate
+                                 AND e_user_approved.clubCatalogID <=> e.clubCatalogID
+                                 AND LOWER(TRIM(e_user_approved.eventTitle)) = LOWER(TRIM(e.eventTitle))
+                           ) THEN 'approved'
+                           WHEN EXISTS (
+                               SELECT 1
+                               FROM events e_user_pending
+                               WHERE e_user_pending.userID = ?
+                                 AND e_user_pending.status = 'pending'
+                                 AND e_user_pending.eventDate = e.eventDate
+                                 AND e_user_pending.clubCatalogID <=> e.clubCatalogID
+                                 AND LOWER(TRIM(e_user_pending.eventTitle)) = LOWER(TRIM(e.eventTitle))
+                           ) THEN 'pending'
+                           ELSE ''
+                       END AS userJoinState
+                FROM events e
+                JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
+                WHERE cc.is_active = 1
+                  AND e.clubCatalogID IS NOT NULL
+                  AND e.status IN ('pending', 'approved')
+                  AND e.eventID IN (
+                      SELECT MIN(e2.eventID)
+                      FROM events e2
+                      WHERE e2.status IN ('pending', 'approved')
+                        AND e2.clubCatalogID IS NOT NULL
+                      GROUP BY e2.clubCatalogID, LOWER(TRIM(e2.eventTitle)), e2.eventDate
+                  )
+                ORDER BY e.eventDate DESC, e.eventTitle ASC, e.eventID DESC";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([(int) $userID, (int) $userID]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    public static function findJoinTemplateById($eventID) {
+        $db = Database::connect();
+        $registeredCountSql = "(SELECT COUNT(*)
+                                FROM events e_reg
+                                WHERE e_reg.status = 'approved'
+                                  AND e_reg.eventDate = e.eventDate
+                                  AND e_reg.clubCatalogID <=> e.clubCatalogID
+                                  AND LOWER(TRIM(e_reg.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
+        $pendingCountSql = "(SELECT COUNT(*)
+                             FROM events e_pending
+                             WHERE e_pending.status = 'pending'
+                               AND e_pending.eventDate = e.eventDate
+                               AND e_pending.clubCatalogID <=> e.clubCatalogID
+                               AND LOWER(TRIM(e_pending.eventTitle)) = LOWER(TRIM(e.eventTitle)))";
+
+        $sql = "SELECT e.eventID AS templateEventID, e.clubCatalogID, cc.clubName, e.eventTitle, e.eventType, e.eventDate,
+                       e.eventHours, e.location, e.description, e.participantCapacity, e.waitlistEnabled,
+                       {$registeredCountSql} AS registeredCount,
+                       {$pendingCountSql} AS pendingCount,
+                       CASE
+                           WHEN COALESCE(e.participantCapacity, 0) <= 0 THEN 'open'
+                           WHEN {$registeredCountSql} < e.participantCapacity THEN 'open'
+                           WHEN COALESCE(e.waitlistEnabled, 1) = 1 THEN 'waitlist'
+                           ELSE 'full'
+                       END AS registrationStatus
+                FROM events e
+                JOIN club_catalog cc ON cc.clubCatalogID = e.clubCatalogID
+                WHERE e.eventID = ?
+                  AND cc.is_active = 1
+                  AND e.status IN ('pending', 'approved')
+                LIMIT 1";
+
+        $stmt = $db->prepare($sql);
+        $stmt->execute([(int) $eventID]);
+        return $stmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    }
+
+    public static function hasPendingOrApprovedRegistration($userID, $clubCatalogID, $eventTitle, $eventDate) {
+        $db = Database::connect();
+        $stmt = $db->prepare(
+            "SELECT COUNT(*)
+             FROM events
+             WHERE userID = ?
+               AND status IN ('pending', 'approved')
+               AND clubCatalogID <=> ?
+               AND eventDate = ?
+               AND LOWER(TRIM(eventTitle)) = LOWER(TRIM(?))"
+        );
+        $stmt->execute([
+            (int) $userID,
+            $clubCatalogID !== null ? (int) $clubCatalogID : null,
+            (string) $eventDate,
+            (string) $eventTitle,
+        ]);
+        return ((int) ($stmt->fetchColumn() ?? 0)) > 0;
     }
 
     public static function create($userID, $clubCatalogID, $eventTitle, $eventType, $eventDate, $eventHours, $location, $description, $reflection = null, $status = 'pending', $reviewedBy = null, $reviewNote = null, $reviewedAt = null, $evidencePath = null, $participantCapacity = null, $waitlistEnabled = 1) {

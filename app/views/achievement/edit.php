@@ -5,6 +5,10 @@
     $selectedEventID = isset($_POST['eventID'])
         ? (int) $_POST['eventID']
         : (int) ($achievement['eventID'] ?? 0);
+    $selectedTitle = isset($_POST['title'])
+        ? trim((string) $_POST['title'])
+        : trim((string) ($achievement['title'] ?? ''));
+    $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
     $filterSearch = htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8');
     $filterSort = htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8');
     $filterStatus = htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8');
@@ -78,7 +82,19 @@
 
                 <div>
                     <label class="label">Title</label>
-                    <input class="input" type="text" name="title" value="<?= htmlspecialchars((string) ($achievement['title'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
+                    <select class="input" name="title" required>
+                        <option value="">Select title</option>
+                        <?php foreach ($achievementTitleOptions as $titleOption): ?>
+                            <option value="<?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>" <?= $selectedTitle === $titleOption ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <?php if ($hasCustomTitle): ?>
+                            <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
+                                <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
+                            </option>
+                        <?php endif; ?>
+                    </select>
                 </div>
 
                 <div>
@@ -112,8 +128,9 @@
 
             <div class="form-actions">
                 <div style="width:100%;">
-                    <label class="label">Proof Document (Optional)</label>
-                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png">
+                    <?php $hasEvidence = !empty($achievement['evidence_path']); ?>
+                    <label class="label">Proof Document (<?= $hasEvidence ? 'Required if replacing' : 'Required' ?>)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png" <?= $hasEvidence ? '' : 'required' ?>>
                     <?php if (!empty($achievement['evidence_path'])): ?>
                         <div class="muted" style="margin-top:6px;">
                             Current file:

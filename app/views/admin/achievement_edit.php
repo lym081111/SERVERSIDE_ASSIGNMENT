@@ -8,6 +8,10 @@
     $selectedEventID = isset($_POST['eventID'])
         ? (int) $_POST['eventID']
         : (int) ($achievement['eventID'] ?? 0);
+    $selectedTitle = isset($_POST['title'])
+        ? trim((string) $_POST['title'])
+        : trim((string) ($achievement['title'] ?? ''));
+    $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
 ?>
 
 <div class="main module-page">
@@ -95,12 +99,24 @@
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                    </div>
+                </div>
 
-                    <div>
-                        <label class="label">Title</label>
-                        <input class="input" type="text" name="title" value="<?= htmlspecialchars((string) ($achievement['title'] ?? ''), ENT_QUOTES, 'UTF-8') ?>" required>
-                    </div>
+                <div>
+                    <label class="label">Title</label>
+                    <select class="input" name="title" required>
+                        <option value="">Select title</option>
+                        <?php foreach ($achievementTitleOptions as $titleOption): ?>
+                            <option value="<?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>" <?= $selectedTitle === $titleOption ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                        <?php if ($hasCustomTitle): ?>
+                            <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
+                                <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
+                            </option>
+                        <?php endif; ?>
+                    </select>
+                </div>
 
                     <div>
                         <label class="label">Category (Auto from Event)</label>
@@ -128,6 +144,18 @@
                 <div style="margin-top:14px;">
                     <label class="label">Description</label>
                     <textarea class="input" name="description" rows="4"><?= htmlspecialchars((string) ($achievement['description'] ?? ''), ENT_QUOTES, 'UTF-8') ?></textarea>
+                </div>
+
+                <div style="margin-top:14px;">
+                    <label class="label">Proof Document</label>
+                    <?php $evidencePath = trim((string) ($achievement['evidence_path'] ?? '')); ?>
+                    <?php if ($evidencePath !== ''): ?>
+                        <div class="muted">
+                            <a class="link" href="<?= htmlspecialchars(BASE_URL . ltrim($evidencePath, '/'), ENT_QUOTES, 'UTF-8') ?>" target="_blank" rel="noopener">View uploaded evidence</a>
+                        </div>
+                    <?php else: ?>
+                        <div class="error" style="margin:0;">No evidence uploaded. This record cannot be approved until evidence is provided.</div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="form-grid" style="margin-top:14px;">

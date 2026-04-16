@@ -132,9 +132,9 @@
                     </div>
 
                     <div>
-                        <label class="label">Participant Capacity (optional)</label>
-                        <input class="input" type="number" name="participantCapacity" min="1" step="1" placeholder="Leave empty for unlimited">
-                        <div class="muted" style="margin-top:6px;">Registered count is auto-calculated from approved participant records.</div>
+                        <label class="label">Participant Capacity (Seats)</label>
+                        <input class="input" type="number" name="participantCapacity" min="1" step="1" required placeholder="e.g. 120">
+                        <div class="muted" style="margin-top:6px;">Required. Registered count is auto-calculated from approved participant records.</div>
                     </div>
 
                     <div style="display:flex;align-items:center;gap:8px;padding-top:28px;">
@@ -146,11 +146,6 @@
                 <div style="margin-top:14px;">
                     <label class="label">Description</label>
                     <textarea class="input" name="description" rows="4" placeholder="Add notes or a short summary."></textarea>
-                </div>
-
-                <div style="margin-top:14px;">
-                    <label class="label">Reflection (Learning Outcome)</label>
-                    <textarea class="input" name="reflection" rows="4" placeholder="What skill or insight did the student gain?"></textarea>
                 </div>
 
                 <div class="form-actions">

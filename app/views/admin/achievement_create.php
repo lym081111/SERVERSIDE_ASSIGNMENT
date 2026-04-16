@@ -1,6 +1,18 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
+<?php
+    $selectedStudentID = isset($_POST['studentID']) ? (int) $_POST['studentID'] : 0;
+    $selectedStudentIdInput = isset($_POST['studentId']) ? (string) $_POST['studentId'] : '';
+    $selectedStudentEmailInput = isset($_POST['studentEmail']) ? (string) $_POST['studentEmail'] : '';
+    $selectedEventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
+    $selectedTitle = trim((string) ($_POST['title'] ?? ''));
+    $selectedAchievementLevel = trim((string) ($_POST['achievementLevel'] ?? 'Faculty'));
+    $selectedDateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
+    $selectedDescription = (string) ($_POST['description'] ?? '');
+    $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
+?>
+
 <div class="main module-page">
 
     <div class="topbar admin-topbar">
@@ -45,13 +57,13 @@
             <span class="admin-section-chip">Required</span>
         </div>
         <div class="admin-section-body">
-            <form method="POST" class="form">
+            <form method="POST" enctype="multipart/form-data" class="form">
                 <?php csrf_field(); ?>
 
                 <div class="form-grid">
                     <div>
                         <label class="label">Student ID (searchable)</label>
-                        <input class="input" type="text" name="studentId" list="student-ids" placeholder="Start typing student ID...">
+                        <input class="input" type="text" name="studentId" list="student-ids" placeholder="Start typing student ID..." value="<?= htmlspecialchars($selectedStudentIdInput, ENT_QUOTES, 'UTF-8') ?>">
                         <datalist id="student-ids">
                             <?php foreach ($students as $s): ?>
                                 <?php if (!empty($s['isAdmin'])) { continue; } ?>
@@ -61,7 +73,7 @@
                     </div>
                     <div>
                         <label class="label">Student Email (searchable)</label>
-                        <input class="input" type="text" name="studentEmail" list="student-emails" placeholder="Start typing email...">
+                        <input class="input" type="text" name="studentEmail" list="student-emails" placeholder="Start typing email..." value="<?= htmlspecialchars($selectedStudentEmailInput, ENT_QUOTES, 'UTF-8') ?>">
                         <datalist id="student-emails">
                             <?php foreach ($students as $s): ?>
                                 <?php if (!empty($s['isAdmin'])) { continue; } ?>
@@ -78,7 +90,8 @@
                                 <option
                                     value="<?= htmlspecialchars((string) ($s['userID'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
                                     data-student-id="<?= htmlspecialchars((string) ($s['student_id'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
-                                    data-student-email="<?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>">
+                                    data-student-email="<?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>"
+                                    <?= (int) ($s['userID'] ?? 0) === $selectedStudentID ? 'selected' : '' ?>>
                                     <?= htmlspecialchars((string) ($s['name'] ?? ''), ENT_QUOTES, 'UTF-8') ?> (<?= htmlspecialchars((string) ($s['student_id'] ?? '-'), ENT_QUOTES, 'UTF-8') ?> - <?= htmlspecialchars((string) ($s['email'] ?? ''), ENT_QUOTES, 'UTF-8') ?>)
                                 </option>
                             <?php endforeach; ?>
@@ -90,7 +103,6 @@
                     <div>
                         <label class="label">Approved Event</label>
                         <?php
-                            $selectedEventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
                             $selectedEventCategory = '';
                             foreach ($approvedEvents as $eventRow) {
                                 if ((int) ($eventRow['eventID'] ?? 0) === $selectedEventID) {
@@ -115,7 +127,19 @@
 
                     <div>
                         <label class="label">Title</label>
-                        <input class="input" type="text" name="title" placeholder="e.g. 1st Prize" required>
+                        <select class="input" name="title" required>
+                            <option value="">Select title</option>
+                            <?php foreach ($achievementTitleOptions as $titleOption): ?>
+                                <option value="<?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>" <?= $selectedTitle === $titleOption ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
+                                </option>
+                            <?php endforeach; ?>
+                            <?php if ($hasCustomTitle): ?>
+                                <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
+                                    <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
+                                </option>
+                            <?php endif; ?>
+                        </select>
                     </div>
 
                     <div>
@@ -127,22 +151,28 @@
                     <div>
                         <label class="label">Achievement Level</label>
                         <select class="input" name="achievementLevel">
-                            <option value="Faculty">Faculty</option>
-                            <option value="University">University</option>
-                            <option value="National">National</option>
-                            <option value="International">International</option>
+                            <option value="Faculty" <?= $selectedAchievementLevel === 'Faculty' ? 'selected' : '' ?>>Faculty</option>
+                            <option value="University" <?= $selectedAchievementLevel === 'University' ? 'selected' : '' ?>>University</option>
+                            <option value="National" <?= $selectedAchievementLevel === 'National' ? 'selected' : '' ?>>National</option>
+                            <option value="International" <?= $selectedAchievementLevel === 'International' ? 'selected' : '' ?>>International</option>
                         </select>
                     </div>
 
                     <div>
                         <label class="label">Date Received</label>
-                        <input class="input" type="date" name="dateReceived" required>
+                        <input class="input" type="date" name="dateReceived" value="<?= htmlspecialchars($selectedDateReceived, ENT_QUOTES, 'UTF-8') ?>" required>
                     </div>
                 </div>
 
                 <div style="margin-top:14px;">
                     <label class="label">Description</label>
-                    <textarea class="input" name="description" rows="4" placeholder="Add notes or results."></textarea>
+                    <textarea class="input" name="description" rows="4" placeholder="Add notes or results."><?= htmlspecialchars($selectedDescription, ENT_QUOTES, 'UTF-8') ?></textarea>
+                </div>
+
+                <div style="margin-top:14px;">
+                    <label class="label">Proof Document (Required)</label>
+                    <input class="input" type="file" name="evidence_file" accept=".pdf,.jpg,.jpeg,.png" required>
+                    <div class="muted" style="margin-top:6px;">Accepted: PDF, JPG, PNG (max 5MB).</div>
                 </div>
 
                 <div class="form-actions">

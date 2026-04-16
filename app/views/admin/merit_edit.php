@@ -8,6 +8,30 @@
     $selectedEventID = isset($_POST['eventID'])
         ? (int) $_POST['eventID']
         : (int) ($merit['eventID'] ?? 0);
+    $selectedAchievementID = isset($_POST['achievementID'])
+        ? (int) $_POST['achievementID']
+        : (int) ($merit['achievementID'] ?? 0);
+    $resolveAchievementMeta = function ($title) {
+        $normalized = strtolower(trim((string) $title));
+        $rankLabel = 'Participant / Certificate';
+        $bonus = 5;
+
+        if (in_array($normalized, ['1st prize', 'champion', 'gold medal', 'best performer', 'special award'], true)) {
+            $rankLabel = '1st Prize';
+            $bonus = 15;
+        } elseif (in_array($normalized, ['2nd prize', 'runner-up', 'silver medal'], true)) {
+            $rankLabel = '2nd Prize';
+            $bonus = 12;
+        } elseif (in_array($normalized, ['3rd prize', 'bronze medal', 'finalist'], true)) {
+            $rankLabel = '3rd Prize';
+            $bonus = 10;
+        } elseif (in_array($normalized, ['consolation prize', 'honorable mention', 'semi-finalist'], true)) {
+            $rankLabel = 'Consolation';
+            $bonus = 7;
+        }
+
+        return ['rankLabel' => $rankLabel, 'bonus' => $bonus];
+    };
 ?>
 
 <div class="main module-page">
@@ -35,7 +59,7 @@
         <div>
             <div class="admin-eyebrow">Admin Update</div>
             <h1 class="admin-title">Update Merit Record</h1>
-            <p class="admin-subtitle">Adjust record details for the selected student.</p>
+            <p class="admin-subtitle">Adjust event-linked points and optional achievement bonus for this student.</p>
         </div>
         <div class="admin-hero-actions">
             <a class="btn btn-secondary" href="index.php?url=merit/index">Back</a>
@@ -101,28 +125,69 @@
                     </div>
 
                     <div>
+                        <label class="label">Achievement (Auto from Event)</label>
+                        <input class="input" type="text" id="achievementDisplay" value="-" readonly>
+                        <input type="hidden" name="achievementID" id="achievementID" value="<?= htmlspecialchars((string) $selectedAchievementID, ENT_QUOTES, 'UTF-8') ?>">
+                        <select class="input" id="achievementPool" style="display:none;">
+                            <option value="">No achievement bonus</option>
+                            <?php foreach ($approvedAchievements as $ac): ?>
+                                <?php
+                                    $achievementId = (int) ($ac['achievementID'] ?? 0);
+                                    $achievementEventID = (int) ($ac['eventID'] ?? 0);
+                                    $achievementTitle = trim((string) ($ac['title'] ?? 'Achievement'));
+                                    $achievementDate = trim((string) ($ac['dateReceived'] ?? ''));
+                                    $achievementMeta = $resolveAchievementMeta($achievementTitle);
+                                ?>
+                                <option
+                                    value="<?= htmlspecialchars((string) $achievementId, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-event-id="<?= htmlspecialchars((string) $achievementEventID, ENT_QUOTES, 'UTF-8') ?>"
+                                    data-rank-label="<?= htmlspecialchars((string) ($achievementMeta['rankLabel'] ?? '-'), ENT_QUOTES, 'UTF-8') ?>"
+                                    data-bonus="<?= htmlspecialchars((string) ((int) ($achievementMeta['bonus'] ?? 0)), ENT_QUOTES, 'UTF-8') ?>"
+                                    <?= $achievementId === $selectedAchievementID ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($achievementTitle, ENT_QUOTES, 'UTF-8') ?><?= $achievementDate !== '' ? ' (' . htmlspecialchars($achievementDate, ENT_QUOTES, 'UTF-8') . ')' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="label">Achievement Result (Auto)</label>
+                        <input class="input" type="text" id="achievementResultDisplay" value="-" readonly>
+                    </div>
+
+                    <div>
                         <label class="label">Club</label>
-                        <input class="input" type="text" id="clubDisplay" value="-" disabled>
+                        <input class="input" type="text" id="clubDisplay" value="-" readonly>
                     </div>
 
                     <div>
                         <label class="label">Activity Name (From Event)</label>
-                        <input class="input" type="text" id="activityDisplay" value="-" disabled>
+                        <input class="input" type="text" id="activityDisplay" value="-" readonly>
                     </div>
 
                     <div>
-                        <label class="label">Merit Hours (From Event)</label>
-                        <input class="input" type="text" id="hoursDisplay" value="-" disabled>
+                        <label class="label">Base Merit Points (From Event)</label>
+                        <input class="input" type="text" id="hoursDisplay" value="-" readonly>
+                    </div>
+
+                    <div>
+                        <label class="label">Achievement Bonus Points</label>
+                        <input class="input" type="text" id="bonusDisplay" value="0" readonly>
+                    </div>
+
+                    <div>
+                        <label class="label">Total Merit Points</label>
+                        <input class="input" type="text" id="totalPointsDisplay" value="-" readonly>
                     </div>
 
                     <div>
                         <label class="label">Date From</label>
-                        <input class="input" type="text" id="dateFromDisplay" value="-" disabled>
+                        <input class="input" type="text" id="dateFromDisplay" value="-" readonly>
                     </div>
 
                     <div>
                         <label class="label">Date To</label>
-                        <input class="input" type="text" id="dateToDisplay" value="-" disabled>
+                        <input class="input" type="text" id="dateToDisplay" value="-" readonly>
                     </div>
                 </div>
 
@@ -234,37 +299,105 @@
 
 <script>
 (function () {
-    var select = document.getElementById('eventID');
+    var eventSelect = document.getElementById('eventID');
+    var achievementIdInput = document.getElementById('achievementID');
+    var achievementPool = document.getElementById('achievementPool');
+    var achievementDisplay = document.getElementById('achievementDisplay');
+    var achievementResultDisplay = document.getElementById('achievementResultDisplay');
+
+    var clubDisplay = document.getElementById('clubDisplay');
     var activityDisplay = document.getElementById('activityDisplay');
     var hoursDisplay = document.getElementById('hoursDisplay');
+    var bonusDisplay = document.getElementById('bonusDisplay');
+    var totalPointsDisplay = document.getElementById('totalPointsDisplay');
     var dateFromDisplay = document.getElementById('dateFromDisplay');
     var dateToDisplay = document.getElementById('dateToDisplay');
-    var clubDisplay = document.getElementById('clubDisplay');
 
-    if (!select || !activityDisplay || !hoursDisplay || !dateFromDisplay || !dateToDisplay || !clubDisplay) {
+    if (!eventSelect || !achievementIdInput || !achievementPool || !achievementDisplay || !achievementResultDisplay || !clubDisplay || !activityDisplay || !hoursDisplay || !bonusDisplay || !totalPointsDisplay || !dateFromDisplay || !dateToDisplay) {
         return;
     }
 
+    function parseIntSafe(value) {
+        var n = parseInt(value, 10);
+        return isNaN(n) ? 0 : n;
+    }
+
+    function resolveAchievementForEvent(eventId) {
+        if (!eventId) {
+            achievementIdInput.value = '';
+            achievementDisplay.value = '-';
+            achievementResultDisplay.value = '-';
+            return 0;
+        }
+
+        var currentId = (achievementIdInput.value || '').trim();
+        var chosen = null;
+
+        if (currentId) {
+            chosen = Array.prototype.find.call(achievementPool.options, function (option) {
+                return option && option.value === currentId && (option.getAttribute('data-event-id') || '') === eventId;
+            }) || null;
+        }
+
+        if (!chosen) {
+            chosen = Array.prototype.find.call(achievementPool.options, function (option) {
+                return option && option.value && (option.getAttribute('data-event-id') || '') === eventId;
+            }) || null;
+        }
+
+        if (!chosen) {
+            achievementIdInput.value = '';
+            achievementDisplay.value = 'No approved achievement for this event';
+            achievementResultDisplay.value = '-';
+            return 0;
+        }
+
+        achievementIdInput.value = chosen.value;
+        achievementDisplay.value = chosen.text || '-';
+        achievementResultDisplay.value = chosen.getAttribute('data-rank-label') || '-';
+        return parseIntSafe(chosen.getAttribute('data-bonus') || '0');
+    }
+
+    function syncTotalPoints() {
+        var base = parseIntSafe(hoursDisplay.value);
+        var eventId = (eventSelect.value || '').trim();
+        var bonus = resolveAchievementForEvent(eventId);
+        bonusDisplay.value = String(bonus);
+        if (base > 0) {
+            totalPointsDisplay.value = String(base + bonus);
+        } else {
+            totalPointsDisplay.value = '-';
+        }
+    }
+
     function syncEventPreview() {
-        var opt = select.options[select.selectedIndex];
+        var opt = eventSelect.options[eventSelect.selectedIndex];
         if (!opt || !opt.value) {
+            clubDisplay.value = '-';
             activityDisplay.value = '-';
             hoursDisplay.value = '-';
             dateFromDisplay.value = '-';
             dateToDisplay.value = '-';
-            clubDisplay.value = '-';
+            bonusDisplay.value = '0';
+            totalPointsDisplay.value = '-';
+            achievementIdInput.value = '';
+            achievementDisplay.value = '-';
+            achievementResultDisplay.value = '-';
             return;
         }
 
+        clubDisplay.value = opt.getAttribute('data-club') || '-';
         activityDisplay.value = opt.getAttribute('data-title') || '-';
         hoursDisplay.value = opt.getAttribute('data-hours') || '-';
         dateFromDisplay.value = opt.getAttribute('data-date') || '-';
         dateToDisplay.value = opt.getAttribute('data-date') || '-';
-        clubDisplay.value = opt.getAttribute('data-club') || '-';
+        syncTotalPoints();
     }
 
-    select.addEventListener('change', syncEventPreview);
+    eventSelect.addEventListener('change', syncEventPreview);
+
     syncEventPreview();
+    syncTotalPoints();
 })();
 </script>
 
