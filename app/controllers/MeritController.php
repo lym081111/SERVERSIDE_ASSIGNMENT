@@ -92,40 +92,18 @@ class MeritController {
 
         $directMap = [
             '1st prize' => 'first_prize',
-            'champion' => 'first_prize',
-            'gold medal' => 'first_prize',
-            'best performer' => 'first_prize',
-            'special award' => 'first_prize',
             '2nd prize' => 'second_prize',
-            'runner-up' => 'second_prize',
-            'silver medal' => 'second_prize',
             '3rd prize' => 'third_prize',
-            'bronze medal' => 'third_prize',
-            'finalist' => 'third_prize',
+            'consolation' => 'consolation',
             'consolation prize' => 'consolation',
-            'honorable mention' => 'consolation',
-            'semi-finalist' => 'consolation',
+            'participant / certificate' => 'participant',
+            'participate / certificate' => 'participant',
             'participant' => 'participant',
-            'other / etc' => 'participant',
         ];
         if (isset($directMap[$normalized])) {
             return $directMap[$normalized];
         }
-
-        if (strpos($normalized, '1st') !== false || strpos($normalized, 'first') !== false || strpos($normalized, 'champion') !== false || strpos($normalized, 'gold') !== false) {
-            return 'first_prize';
-        }
-        if (strpos($normalized, '2nd') !== false || strpos($normalized, 'second') !== false || strpos($normalized, 'runner') !== false || strpos($normalized, 'silver') !== false) {
-            return 'second_prize';
-        }
-        if (strpos($normalized, '3rd') !== false || strpos($normalized, 'third') !== false || strpos($normalized, 'bronze') !== false || strpos($normalized, 'finalist') !== false) {
-            return 'third_prize';
-        }
-        if (strpos($normalized, 'consolation') !== false || strpos($normalized, 'honorable') !== false || strpos($normalized, 'semi') !== false) {
-            return 'consolation';
-        }
-
-        return 'participant';
+        return '';
     }
 
     private function findApprovedAchievementForEvent($targetUserID, $eventID, $preferredAchievementID = 0) {
@@ -169,8 +147,8 @@ class MeritController {
 
         $rankKey = $this->inferAchievementRankFromTitle((string) ($achievement['title'] ?? ''));
         $rankMap = $this->getAchievementRankPointMap();
-        if (!isset($rankMap[$rankKey])) {
-            $rankKey = 'participant';
+        if ($rankKey === '' || !isset($rankMap[$rankKey])) {
+            return $payload;
         }
         $rankMeta = $rankMap[$rankKey];
 

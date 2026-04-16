@@ -10,7 +10,6 @@
     $selectedAchievementLevel = trim((string) ($_POST['achievementLevel'] ?? 'Faculty'));
     $selectedDateReceived = trim((string) ($_POST['dateReceived'] ?? ''));
     $selectedDescription = (string) ($_POST['description'] ?? '');
-    $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
 ?>
 
 <div class="main module-page">
@@ -134,11 +133,6 @@
                                     <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
                                 </option>
                             <?php endforeach; ?>
-                            <?php if ($hasCustomTitle): ?>
-                                <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
-                                    <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
-                                </option>
-                            <?php endif; ?>
                         </select>
                     </div>
 

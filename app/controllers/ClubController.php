@@ -50,6 +50,33 @@ class ClubController {
         return 'index.php?' . http_build_query($params);
     }
 
+    private function getRoleChangeOptions() {
+        return [
+            'President',
+            'Vice President',
+            'Secretary',
+            'Treasurer',
+            'Committee Member',
+            'Club Leader',
+        ];
+    }
+
+    private function normalizeRequestedRole($value) {
+        $role = trim((string) $value);
+        if ($role === '') {
+            return null;
+        }
+
+        $options = $this->getRoleChangeOptions();
+        foreach ($options as $option) {
+            if (strcasecmp($role, $option) === 0) {
+                return $option;
+            }
+        }
+
+        return null;
+    }
+
     public function index() {
 
         $this->checkLogin();
@@ -244,6 +271,7 @@ class ClubController {
         }
 
         $clubCatalog = ClubCatalog::getAllActive();
+        $roleChangeOptions = $this->getRoleChangeOptions();
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             verify_csrf();
@@ -262,9 +290,9 @@ class ClubController {
             $clubName = trim((string) ($clubDefinition['clubName'] ?? ''));
             $role = 'Member';
             if ($error === null && $requestType === 'role_change') {
-                $desiredRole = trim((string) ($_POST['desiredRole'] ?? ''));
-                if ($desiredRole === '' || strcasecmp($desiredRole, 'Member') === 0) {
-                    $error = "Please enter a higher role (for example: Secretary, Treasurer).";
+                $desiredRole = $this->normalizeRequestedRole($_POST['desiredRole'] ?? '');
+                if ($desiredRole === null) {
+                    $error = "Please select a higher role from the list.";
                 } else {
                     $role = $desiredRole;
                 }
@@ -464,6 +492,7 @@ class ClubController {
                 $this->redirectWithError("Approved club records can only be edited by admin.");
             }
             $clubCatalog = ClubCatalog::getAllActive();
+            $roleChangeOptions = $this->getRoleChangeOptions();
         }
 
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -498,9 +527,9 @@ class ClubController {
                 if ($error === null && $requestType === 'join') {
                     $role = 'Member';
                 } elseif ($error === null) {
-                    $desiredRole = trim((string) ($_POST['desiredRole'] ?? ''));
-                    if ($desiredRole === '' || strcasecmp($desiredRole, 'Member') === 0) {
-                        $error = "Please enter a higher role (for example: Secretary, Treasurer).";
+                    $desiredRole = $this->normalizeRequestedRole($_POST['desiredRole'] ?? '');
+                    if ($desiredRole === null) {
+                        $error = "Please select a higher role from the list.";
                     } else {
                         $role = $desiredRole;
                     }

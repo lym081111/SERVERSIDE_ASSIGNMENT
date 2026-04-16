@@ -48,7 +48,6 @@
         <?php
             $selectedEventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
             $selectedTitle = trim((string) ($_POST['title'] ?? ''));
-            $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
             $selectedEventCategory = '';
             foreach ($approvedEvents as $eventRow) {
                 if ((int) ($eventRow['eventID'] ?? 0) === $selectedEventID) {
@@ -87,11 +86,6 @@
                                 <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
                             </option>
                         <?php endforeach; ?>
-                        <?php if ($hasCustomTitle): ?>
-                            <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
-                                <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
-                            </option>
-                        <?php endif; ?>
                     </select>
                 </div>
 

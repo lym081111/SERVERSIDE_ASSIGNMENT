@@ -1,6 +1,14 @@
 <?php require "../app/views/layout/header.php"; ?>
 <?php require "../app/views/layout/sidebar.php"; ?>
 
+<?php
+    $roleChangeOptions = isset($roleChangeOptions) && is_array($roleChangeOptions) && !empty($roleChangeOptions)
+        ? $roleChangeOptions
+        : ['President', 'Vice President', 'Secretary', 'Treasurer', 'Committee Member', 'Club Leader'];
+    $selectedRequestType = ((string) ($_POST['requestType'] ?? 'join')) === 'role_change' ? 'role_change' : 'join';
+    $selectedDesiredRole = trim((string) ($_POST['desiredRole'] ?? ''));
+?>
+
 <div class="main">
 
     <div class="topbar">
@@ -64,14 +72,21 @@
                 <div>
                     <label class="label">Request Type</label>
                     <select class="input" name="requestType" id="requestType" required>
-                        <option value="join">Join club (Member)</option>
-                        <option value="role_change">Request higher role</option>
+                        <option value="join" <?= $selectedRequestType === 'join' ? 'selected' : '' ?>>Join club (Member)</option>
+                        <option value="role_change" <?= $selectedRequestType === 'role_change' ? 'selected' : '' ?>>Request higher role</option>
                     </select>
                 </div>
 
-                <div id="desiredRoleGroup" style="display:none;">
+                <div id="desiredRoleGroup" style="<?= $selectedRequestType === 'role_change' ? 'display:block;' : 'display:none;' ?>">
                     <label class="label">Desired Role</label>
-                    <input class="input" type="text" name="desiredRole" id="desiredRole" placeholder="e.g. Secretary, Treasurer">
+                    <select class="input" name="desiredRole" id="desiredRole">
+                        <option value="">Select higher role</option>
+                        <?php foreach ($roleChangeOptions as $roleOption): ?>
+                            <option value="<?= htmlspecialchars((string) $roleOption, ENT_QUOTES, 'UTF-8') ?>" <?= $selectedDesiredRole === (string) $roleOption ? 'selected' : '' ?>>
+                                <?= htmlspecialchars((string) $roleOption, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>

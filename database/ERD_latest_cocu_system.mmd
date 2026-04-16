@@ -1,0 +1,130 @@
+erDiagram
+    USERS {
+        int userID PK
+        varchar student_id UK
+        varchar name
+        varchar email UK
+        varchar passwordHash
+        tinyint isAdmin
+        timestamp created_at
+    }
+
+    CLUB_CATALOG {
+        int clubCatalogID PK
+        varchar clubName UK
+        text description
+        tinyint is_active
+        int created_by FK
+        timestamp created_at
+    }
+
+    EVENTS {
+        int eventID PK
+        int userID FK
+        int clubCatalogID FK
+        varchar eventTitle
+        varchar eventType
+        date eventDate
+        decimal eventHours
+        int participantCapacity
+        int registeredCount
+        tinyint waitlistEnabled
+        int waitlistCount
+        varchar location
+        text description
+        text reflection
+        enum status
+        timestamp submitted_at
+        int reviewed_by FK
+        varchar evidence_path
+    }
+
+    MERITS {
+        int meritID PK
+        int userID FK
+        int eventID FK
+        int achievementID
+        varchar activityName
+        int hours
+        int base_hours
+        varchar achievement_rank
+        int achievement_bonus
+        enum status
+        timestamp submitted_at
+        int reviewed_by FK
+        varchar evidence_path
+        text appeal_note
+        int resubmission_count
+    }
+
+    ACHIEVEMENTS {
+        int achievementID PK
+        int userID FK
+        int eventID FK
+        varchar title
+        varchar category
+        varchar achievementLevel
+        date dateReceived
+        enum status
+        timestamp submitted_at
+        int reviewed_by FK
+        varchar evidence_path
+    }
+
+    CLUBS {
+        int clubID PK
+        int userID FK
+        varchar clubName
+        varchar role
+        enum request_type
+        date startDate
+        date endDate
+        enum status
+        timestamp submitted_at
+        int reviewed_by FK
+        varchar evidence_path
+    }
+
+    MERIT_CERTIFICATES {
+        int certificateID PK
+        int userID FK
+        int source_meritID FK
+        int issued_by FK
+        int milestone_hours
+        int approved_hours_snapshot
+        varchar certificate_code UK
+        timestamp issued_at
+    }
+
+    MERIT_STATUS_LOGS {
+        int logID PK
+        int meritID FK
+        enum from_status
+        enum to_status
+        int changed_by FK
+        text change_note
+        varchar change_source
+        timestamp created_at
+    }
+
+    USERS ||--o{ EVENTS : submits
+    USERS ||--o{ MERITS : submits
+    USERS ||--o{ ACHIEVEMENTS : submits
+    USERS ||--o{ CLUBS : submits
+    USERS ||--o{ CLUB_CATALOG : creates
+
+    CLUB_CATALOG ||--o{ EVENTS : categorizes
+
+    EVENTS ||--o{ MERITS : source_event
+    EVENTS ||--o{ ACHIEVEMENTS : source_event
+
+    MERITS ||--o{ MERIT_STATUS_LOGS : audit_log
+    MERITS ||--o{ MERIT_CERTIFICATES : certificate_source
+
+    USERS ||--o{ EVENTS : reviews
+    USERS ||--o{ MERITS : reviews
+    USERS ||--o{ ACHIEVEMENTS : reviews
+    USERS ||--o{ CLUBS : reviews
+    USERS ||--o{ MERIT_STATUS_LOGS : status_changed_by
+    USERS ||--o{ MERIT_CERTIFICATES : issued_by
+    USERS ||--o{ MERIT_CERTIFICATES : issued_to

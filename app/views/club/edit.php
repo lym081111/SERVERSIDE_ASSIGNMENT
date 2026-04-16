@@ -2,8 +2,13 @@
 <?php require "../app/views/layout/sidebar.php"; ?>
 
 <?php
-    $currentRequestType = ((string) ($club['request_type'] ?? 'join')) === 'role_change' ? 'role_change' : 'join';
-    $currentDesiredRole = $currentRequestType === 'role_change' ? (string) ($club['role'] ?? '') : '';
+    $roleChangeOptions = isset($roleChangeOptions) && is_array($roleChangeOptions) && !empty($roleChangeOptions)
+        ? $roleChangeOptions
+        : ['President', 'Vice President', 'Secretary', 'Treasurer', 'Committee Member', 'Club Leader'];
+    $currentRequestType = ((string) ($_POST['requestType'] ?? ($club['request_type'] ?? 'join'))) === 'role_change' ? 'role_change' : 'join';
+    $currentDesiredRole = $currentRequestType === 'role_change'
+        ? trim((string) ($_POST['desiredRole'] ?? ($club['role'] ?? '')))
+        : '';
     $selectedCatalogId = '';
     $currentClubName = (string) ($club['clubName'] ?? '');
     foreach ($clubCatalog as $clubDef) {
@@ -82,9 +87,16 @@
                     </select>
                 </div>
 
-                <div id="desiredRoleGroup" style="display:none;">
+                <div id="desiredRoleGroup" style="<?= $currentRequestType === 'role_change' ? 'display:block;' : 'display:none;' ?>">
                     <label class="label">Desired Role</label>
-                    <input class="input" type="text" name="desiredRole" id="desiredRole" value="<?= htmlspecialchars($currentDesiredRole, ENT_QUOTES, 'UTF-8') ?>" placeholder="e.g. Secretary, Treasurer">
+                    <select class="input" name="desiredRole" id="desiredRole">
+                        <option value="">Select higher role</option>
+                        <?php foreach ($roleChangeOptions as $roleOption): ?>
+                            <option value="<?= htmlspecialchars((string) $roleOption, ENT_QUOTES, 'UTF-8') ?>" <?= $currentDesiredRole === (string) $roleOption ? 'selected' : '' ?>>
+                                <?= htmlspecialchars((string) $roleOption, ENT_QUOTES, 'UTF-8') ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
                 </div>
 
                 <div>

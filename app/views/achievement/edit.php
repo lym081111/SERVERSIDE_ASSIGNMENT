@@ -8,7 +8,15 @@
     $selectedTitle = isset($_POST['title'])
         ? trim((string) $_POST['title'])
         : trim((string) ($achievement['title'] ?? ''));
-    $hasCustomTitle = $selectedTitle !== '' && !in_array($selectedTitle, $achievementTitleOptions, true);
+    $titleNormalizationMap = [
+        'consolation prize' => 'Consolation',
+        'participant' => 'Participant / Certificate',
+        'participate / certificate' => 'Participant / Certificate',
+    ];
+    $selectedTitleNormalizedKey = strtolower($selectedTitle);
+    if (isset($titleNormalizationMap[$selectedTitleNormalizedKey])) {
+        $selectedTitle = $titleNormalizationMap[$selectedTitleNormalizedKey];
+    }
     $filterSearch = htmlspecialchars((string) ($_GET['search'] ?? ''), ENT_QUOTES, 'UTF-8');
     $filterSort = htmlspecialchars((string) ($_GET['sort'] ?? ''), ENT_QUOTES, 'UTF-8');
     $filterStatus = htmlspecialchars((string) ($_GET['status'] ?? ''), ENT_QUOTES, 'UTF-8');
@@ -89,11 +97,6 @@
                                 <?= htmlspecialchars($titleOption, ENT_QUOTES, 'UTF-8') ?>
                             </option>
                         <?php endforeach; ?>
-                        <?php if ($hasCustomTitle): ?>
-                            <option value="<?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?>" selected>
-                                <?= htmlspecialchars($selectedTitle, ENT_QUOTES, 'UTF-8') ?> (existing value)
-                            </option>
-                        <?php endif; ?>
                     </select>
                 </div>
 

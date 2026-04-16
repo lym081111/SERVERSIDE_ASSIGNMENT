@@ -13,24 +13,18 @@
         : (int) ($merit['achievementID'] ?? 0);
     $resolveAchievementMeta = function ($title) {
         $normalized = strtolower(trim((string) $title));
-        $rankLabel = 'Participant / Certificate';
-        $bonus = 5;
+        $rankMap = [
+            '1st prize' => ['rankLabel' => '1st Prize', 'bonus' => 15],
+            '2nd prize' => ['rankLabel' => '2nd Prize', 'bonus' => 12],
+            '3rd prize' => ['rankLabel' => '3rd Prize', 'bonus' => 10],
+            'consolation' => ['rankLabel' => 'Consolation', 'bonus' => 7],
+            'consolation prize' => ['rankLabel' => 'Consolation', 'bonus' => 7],
+            'participant / certificate' => ['rankLabel' => 'Participant / Certificate', 'bonus' => 5],
+            'participate / certificate' => ['rankLabel' => 'Participant / Certificate', 'bonus' => 5],
+            'participant' => ['rankLabel' => 'Participant / Certificate', 'bonus' => 5],
+        ];
 
-        if (in_array($normalized, ['1st prize', 'champion', 'gold medal', 'best performer', 'special award'], true)) {
-            $rankLabel = '1st Prize';
-            $bonus = 15;
-        } elseif (in_array($normalized, ['2nd prize', 'runner-up', 'silver medal'], true)) {
-            $rankLabel = '2nd Prize';
-            $bonus = 12;
-        } elseif (in_array($normalized, ['3rd prize', 'bronze medal', 'finalist'], true)) {
-            $rankLabel = '3rd Prize';
-            $bonus = 10;
-        } elseif (in_array($normalized, ['consolation prize', 'honorable mention', 'semi-finalist'], true)) {
-            $rankLabel = 'Consolation';
-            $bonus = 7;
-        }
-
-        return ['rankLabel' => $rankLabel, 'bonus' => $bonus];
+        return $rankMap[$normalized] ?? ['rankLabel' => '-', 'bonus' => 0];
     };
 ?>
 

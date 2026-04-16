@@ -56,24 +56,33 @@ class AchievementController {
         return in_array($level, $allowed, true) ? $level : 'Faculty';
     }
 
+    private function normalizeAchievementTitle($value) {
+        $title = strtolower(trim((string) $value));
+        if ($title === '') {
+            return null;
+        }
+
+        $allowedMap = [
+            '1st prize' => '1st Prize',
+            '2nd prize' => '2nd Prize',
+            '3rd prize' => '3rd Prize',
+            'consolation' => 'Consolation',
+            'consolation prize' => 'Consolation',
+            'participant / certificate' => 'Participant / Certificate',
+            'participate / certificate' => 'Participant / Certificate',
+            'participant' => 'Participant / Certificate',
+        ];
+
+        return $allowedMap[$title] ?? null;
+    }
+
     private function getAchievementTitleOptions() {
         return [
             '1st Prize',
             '2nd Prize',
             '3rd Prize',
-            'Consolation Prize',
-            'Participant',
-            'Finalist',
-            'Semi-finalist',
-            'Runner-up',
-            'Champion',
-            'Best Performer',
-            'Gold Medal',
-            'Silver Medal',
-            'Bronze Medal',
-            'Special Award',
-            'Honorable Mention',
-            'Other / Etc',
+            'Consolation',
+            'Participant / Certificate',
         ];
     }
 
@@ -190,9 +199,9 @@ class AchievementController {
 
             verify_csrf();
 
-            $title = trim((string) ($_POST['title'] ?? ''));
-            if ($title === '') {
-                $error = "Achievement title is required.";
+            $title = $this->normalizeAchievementTitle($_POST['title'] ?? '');
+            if ($title === null) {
+                $error = "Please select a valid achievement title.";
             }
 
             $eventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
@@ -320,9 +329,9 @@ class AchievementController {
 
             verify_csrf();
 
-            $title = trim((string) ($_POST['title'] ?? ''));
-            if ($title === '') {
-                $error = "Achievement title is required.";
+            $title = $this->normalizeAchievementTitle($_POST['title'] ?? '');
+            if ($title === null) {
+                $error = "Please select a valid achievement title.";
             }
 
             $eventID = isset($_POST['eventID']) ? (int) $_POST['eventID'] : 0;
